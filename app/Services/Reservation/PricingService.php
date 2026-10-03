@@ -23,7 +23,7 @@ class PricingService
             $subtotalInCents += $this->toCents($daily['amount']);
         }
 
-        return $this->formatCents($subtotalInCents);
+        return $this->fromCents($subtotalInCents);
     }
 
     /**
@@ -40,26 +40,58 @@ class PricingService
         $discountInCents = min($this->toCents($discount), $subtotalInCents);
         $feesInCents = $this->toCents($fees);
 
-        return $this->formatCents($subtotalInCents - $discountInCents + $feesInCents);
+        return $this->fromCents($subtotalInCents - $discountInCents + $feesInCents);
     }
 
-    private function toCents(int|float|string $amount): int
+    /**
+     * Converte um valor monetário em reais para centavos, sem aritmética de float.
+     *
+     * Strings decimais são interpretadas diretamente ("10.50" => 1050). Floats são
+     * primeiro convertidos para texto e seguem o mesmo caminho. Arredonda half-up
+     * pela terceira casa decimal ("10.505" => 1051, "10.504" => 1050).
+     *
+     * @throws InvalidArgumentException Para valores malformados, negativos ou grandes demais
+     */
+    public function toCents(int|float|string $amount): int
     {
-        if (! is_numeric($amount)) {
+        $normalized = is_float($amount) ? sprintf('%.10F', $amount) : trim((string) $amount);
+
+        $isDecimal = preg_match('/^(-)?(\d*)(?:\.(\d*))?$/', $normalized, $m) === 1;
+        $integerPart = $m[2] ?? '';
+        $fractionPart = $m[3] ?? '';
+
+        if (! $isDecimal || ($integerPart === '' && $fractionPart === '')) {
             throw new InvalidArgumentException("Valor monetário inválido: {$amount}.");
         }
 
-        $cents = (int) round(((float) $amount) * 100);
-
-        if ($cents < 0) {
+        if (($m[1] ?? '') === '-') {
             throw new InvalidArgumentException("Valor monetário não pode ser negativo: {$amount}.");
         }
 
-        return $cents;
+        $integerPart = ltrim($integerPart, '0');
+
+        // Garante que reais * 100 cabe em um int, sem estourar para float.
+        if (strlen($integerPart) > 16) {
+            throw new InvalidArgumentException("Valor monetário grande demais: {$amount}.");
+        }
+
+        $fraction = str_pad($fractionPart, 3, '0');
+        $cents = (int) $integerPart * 100 + (int) substr($fraction, 0, 2);
+
+        return $cents + ((int) $fraction[2] >= 5 ? 1 : 0);
     }
 
-    private function formatCents(int $cents): string
+    /**
+     * Converte centavos para o decimal esperado pelo banco (6500 => "65.00").
+     *
+     * @throws InvalidArgumentException Para valores negativos
+     */
+    public function fromCents(int $cents): string
     {
+        if ($cents < 0) {
+            throw new InvalidArgumentException("Centavos não podem ser negativos: {$cents}.");
+        }
+
         return sprintf('%d.%02d', intdiv($cents, 100), $cents % 100);
     }
 }

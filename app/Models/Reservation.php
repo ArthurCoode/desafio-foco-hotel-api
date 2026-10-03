@@ -71,4 +71,9 @@ class Reservation extends Model
             ->withPivot('discount')
             ->withTimestamps();
     }
+
+    public function reservationCoupons(): HasMany
+    {
+        return $this->hasMany(ReservationCoupon::class);
+    }
 }
