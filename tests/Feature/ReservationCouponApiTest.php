@@ -9,8 +9,10 @@ use App\Models\Hotel;
 use App\Models\Reservation;
 use App\Models\ReservationCoupon;
 use App\Models\Room;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class ReservationCouponApiTest extends TestCase
@@ -27,6 +29,9 @@ class ReservationCouponApiTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        // As rotas de reserva exigem auth:sanctum; autenticar aqui cobre toda a classe.
+        Sanctum::actingAs(User::factory()->create());
 
         $this->hotel = Hotel::create(['external_id' => 9001, 'name' => 'Hotel Teste']);
         $this->room = Room::create(['external_id' => 9001, 'hotel_id' => $this->hotel->id, 'name' => 'Quarto 101']);

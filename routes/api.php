@@ -1,14 +1,21 @@
 <?php
 
+use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ReservationController;
 use App\Http\Controllers\Api\RoomController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-Route::apiResource('rooms', RoomController::class);
+// Rota pública: o usuário ainda não tem token neste ponto.
+Route::post('/login', [AuthController::class, 'login']);
 
-Route::post('/reservations', [ReservationController::class, 'store']);
+// Todas as rotas abaixo exigem um token Sanctum válido.
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/user', function (Request $request) {
+        return $request->user();
+    });
 
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
+    Route::apiResource('rooms', RoomController::class);
+
+    Route::post('/reservations', [ReservationController::class, 'store']);
+});

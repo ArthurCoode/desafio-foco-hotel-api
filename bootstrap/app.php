@@ -16,7 +16,14 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // Para requisições de API, não há rota de login web para redirecionar.
+        // Retornar null evita a chamada a route('login'), que lança
+        // "Route [login] not defined." quando essa rota não existe.
+        $middleware->redirectGuestsTo(
+            fn (Request $request): ?string => $request->is('api/*') || $request->expectsJson()
+                ? null
+                : route('login')
+        );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $wantsJson = fn (Request $request): bool => $request->is('api/*') || $request->expectsJson();

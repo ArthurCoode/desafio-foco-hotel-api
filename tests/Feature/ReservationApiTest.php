@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Models\Hotel;
 use App\Models\Reservation;
 use App\Models\Room;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class ReservationApiTest extends TestCase
@@ -21,6 +23,9 @@ class ReservationApiTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        // As rotas de reserva exigem auth:sanctum; autenticar aqui cobre toda a classe.
+        Sanctum::actingAs(User::factory()->create());
 
         $this->hotel = Hotel::create(['external_id' => 1001, 'name' => 'Hotel Teste A']);
         $this->otherHotel = Hotel::create(['external_id' => 1002, 'name' => 'Hotel Teste B']);
