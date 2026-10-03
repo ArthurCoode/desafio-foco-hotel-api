@@ -12,14 +12,13 @@ class CreateReservationService
 {
     private const INITIAL_STATUS = 'confirmed';
 
-    /** Cupons e taxas ainda não são implementados: ambos começam em zero. */
-    private const NO_DISCOUNT = 0;
-
+    /** Taxas ainda não são implementadas: começam em zero. */
     private const NO_FEES = 0;
 
     public function __construct(
         private readonly AvailabilityService $availability,
         private readonly PricingService $pricing,
+        private readonly CouponService $coupons,
     ) {}
 
     /**
@@ -29,10 +28,13 @@ class CreateReservationService
      *     check_in: string,
      *     check_out: string,
      *     guests: array<int, array{name: string, phone?: string}>,
-     *     dailies: array<int, array{date: string, amount: int|float|string}>
+     *     dailies: array<int, array{date: string, amount: int|float|string}>,
+     *     coupon_code?: string|null
      * }  $data  Dados já validados pelo StoreReservationRequest
      *
-     * @throws DomainException Quando o quarto não pertence ao hotel ou não há disponibilidade
+     * @throws DomainException Quando o quarto não pertence ao hotel, não há disponibilidade
+     *                         ou o cupom é inexistente/inválido (CouponNotFoundException e
+     *                         InvalidCouponException estendem DomainException)
      */
     public function create(array $data): Reservation
     {
@@ -53,9 +55,22 @@ class CreateReservationService
                 );
             }
 
-            // Valores financeiros vêm exclusivamente das diárias; nada enviado pelo cliente é usado.
+            // Valores financeiros vêm exclusivamente das diárias e do cupom consultado no banco;
+            // nenhum discount/total enviado pelo cliente é usado.
             $subtotal = $this->pricing->calculateSubtotal($data['dailies']);
-            $total = $this->pricing->calculateTotal($subtotal, self::NO_DISCOUNT, self::NO_FEES);
+
+            $appliedCoupon = null;
+            $discountCents = 0;
+
+            $couponCode = $data['coupon_code'] ?? null;
+
+            if ($couponCode !== null) {
+                $appliedCoupon = $this->coupons->apply($couponCode, $this->pricing->toCents($subtotal));
+                $discountCents = $appliedCoupon->discountCents;
+            }
+
+            $discount = $this->pricing->fromCents($discountCents);
+            $total = $this->pricing->calculateTotal($subtotal, $discount, self::NO_FEES);
 
             $reservation = Reservation::create([
                 'hotel_id' => $room->hotel_id,
@@ -64,10 +79,17 @@ class CreateReservationService
                 'check_out' => $data['check_out'],
                 'status' => self::INITIAL_STATUS,
                 'subtotal' => $subtotal,
-                'discount' => self::NO_DISCOUNT,
+                'discount' => $discount,
                 'fees' => self::NO_FEES,
                 'total' => $total,
             ]);
+
+            if ($appliedCoupon !== null) {
+                $reservation->reservationCoupons()->create([
+                    'coupon_id' => $appliedCoupon->coupon->id,
+                    'discount' => $discount,
+                ]);
+            }
 
             $reservation->guests()->createMany(
                 array_map(fn (array $guest) => Arr::only($guest, ['name', 'phone']), $data['guests'])

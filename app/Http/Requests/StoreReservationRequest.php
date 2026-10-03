@@ -33,6 +33,8 @@ class StoreReservationRequest extends FormRequest
             'dailies' => ['required', 'array', 'min:1'],
             'dailies.*.date' => ['required', 'date_format:Y-m-d'],
             'dailies.*.amount' => ['required', 'numeric', 'min:0'],
+
+            'coupon_code' => ['nullable', 'string', 'max:50'],
         ];
     }
 
