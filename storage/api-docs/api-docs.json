@@ -342,6 +342,760 @@
                         "bearerAuth": []
                     }
                 ]
+            },
+            "post": {
+                "tags": [
+                    "Quartos"
+                ],
+                "summary": "Cria um quarto",
+                "description": "Cria um novo quarto vinculado a um hotel e retorna o quarto criado, com os dados do hotel. O campo quantity é opcional: quando não informado, o sistema utiliza 1. Exige token Bearer do Laravel Sanctum.",
+                "operationId": "809158a6b73bac8545f93f5b9f8a8a8a",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "hotel_id",
+                                    "external_id",
+                                    "name"
+                                ],
+                                "properties": {
+                                    "hotel_id": {
+                                        "description": "ID do hotel ao qual o quarto pertence. O hotel precisa existir.",
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "external_id": {
+                                        "description": "Identificador do quarto no sistema externo. Deve ser único dentro do mesmo hotel.",
+                                        "type": "integer",
+                                        "example": 999,
+                                        "minimum": 1
+                                    },
+                                    "name": {
+                                        "description": "Nome do quarto.",
+                                        "type": "string",
+                                        "example": "Quarto Executivo",
+                                        "maxLength": 255
+                                    },
+                                    "quantity": {
+                                        "description": "Opcional. Quantidade de unidades do quarto. Quando não informado, o sistema utiliza 1.",
+                                        "type": "integer",
+                                        "example": 2,
+                                        "default": 1,
+                                        "maximum": 4294967295,
+                                        "minimum": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Quarto criado com sucesso",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "hotel_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "external_id": {
+                                                    "type": "integer",
+                                                    "example": 999
+                                                },
+                                                "name": {
+                                                    "type": "string",
+                                                    "example": "Quarto Executivo"
+                                                },
+                                                "quantity": {
+                                                    "type": "integer",
+                                                    "example": 2
+                                                },
+                                                "created_at": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "example": "2026-10-03T12:00:00.000000Z",
+                                                    "nullable": true
+                                                },
+                                                "updated_at": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "example": "2026-10-03T12:00:00.000000Z",
+                                                    "nullable": true
+                                                },
+                                                "hotel": {
+                                                    "description": "Presente quando o relacionamento está carregado (sempre no store).",
+                                                    "properties": {
+                                                        "id": {
+                                                            "type": "integer",
+                                                            "example": 1
+                                                        },
+                                                        "external_id": {
+                                                            "type": "integer",
+                                                            "example": 1001
+                                                        },
+                                                        "name": {
+                                                            "type": "string",
+                                                            "example": "Hotel Exemplo"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Usuário não autenticado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Dados de entrada inválidos: os dados enviados não passaram pela validação do Laravel (por exemplo, campo obrigatório ausente, hotel inexistente ou external_id já usado neste hotel).",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "The selected hotel id is invalid."
+                                        },
+                                        "errors": {
+                                            "type": "object",
+                                            "example": {
+                                                "hotel_id": [
+                                                    "The selected hotel id is invalid."
+                                                ]
+                                            },
+                                            "additionalProperties": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/rooms/{room}": {
+            "get": {
+                "tags": [
+                    "Quartos"
+                ],
+                "summary": "Exibe um quarto",
+                "description": "Retorna os dados de um quarto, com as informações do hotel ao qual ele pertence. Exige token Bearer do Laravel Sanctum.",
+                "operationId": "754d58756a0cc6c2aae5b8b085a9b586",
+                "parameters": [
+                    {
+                        "name": "room",
+                        "in": "path",
+                        "description": "ID interno do quarto.",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 3
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Quarto encontrado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 3
+                                                },
+                                                "hotel_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "external_id": {
+                                                    "type": "integer",
+                                                    "example": 999
+                                                },
+                                                "name": {
+                                                    "type": "string",
+                                                    "example": "Quarto Executivo"
+                                                },
+                                                "quantity": {
+                                                    "type": "integer",
+                                                    "example": 2
+                                                },
+                                                "created_at": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "example": "2026-10-03T12:00:00.000000Z",
+                                                    "nullable": true
+                                                },
+                                                "updated_at": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "example": "2026-10-03T12:00:00.000000Z",
+                                                    "nullable": true
+                                                },
+                                                "hotel": {
+                                                    "description": "Presente quando o relacionamento está carregado (sempre no show).",
+                                                    "properties": {
+                                                        "id": {
+                                                            "type": "integer",
+                                                            "example": 1
+                                                        },
+                                                        "external_id": {
+                                                            "type": "integer",
+                                                            "example": 1001
+                                                        },
+                                                        "name": {
+                                                            "type": "string",
+                                                            "example": "Hotel Exemplo"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Usuário não autenticado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Quarto não encontrado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "No query results for model [App\\Models\\Room] 3"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Quartos"
+                ],
+                "summary": "Atualiza um quarto (PUT)",
+                "description": "Atualiza os dados de um quarto e retorna o quarto atualizado, com os dados do hotel. Os campos hotel_id, external_id e name são obrigatórios; quantity é opcional. A combinação hotel_id + external_id deve ser única, ignorando o próprio quarto. Exige token Bearer do Laravel Sanctum.",
+                "operationId": "447ae83292e765bb69793a682a6e09ae",
+                "parameters": [
+                    {
+                        "name": "room",
+                        "in": "path",
+                        "description": "ID interno do quarto.",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 3
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "hotel_id",
+                                    "external_id",
+                                    "name"
+                                ],
+                                "properties": {
+                                    "hotel_id": {
+                                        "description": "ID do hotel ao qual o quarto pertence. O hotel precisa existir.",
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "external_id": {
+                                        "description": "Identificador do quarto no sistema externo. A combinação hotel_id + external_id deve ser única, ignorando o próprio quarto.",
+                                        "type": "integer",
+                                        "example": 999,
+                                        "minimum": 1
+                                    },
+                                    "name": {
+                                        "description": "Nome do quarto.",
+                                        "type": "string",
+                                        "example": "Quarto Executivo",
+                                        "maxLength": 255
+                                    },
+                                    "quantity": {
+                                        "description": "Opcional. Quantidade de unidades do quarto.",
+                                        "type": "integer",
+                                        "example": 2,
+                                        "maximum": 4294967295,
+                                        "minimum": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Quarto atualizado com sucesso",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 3
+                                                },
+                                                "hotel_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "external_id": {
+                                                    "type": "integer",
+                                                    "example": 999
+                                                },
+                                                "name": {
+                                                    "type": "string",
+                                                    "example": "Quarto Executivo"
+                                                },
+                                                "quantity": {
+                                                    "type": "integer",
+                                                    "example": 2
+                                                },
+                                                "created_at": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "example": "2026-10-03T12:00:00.000000Z",
+                                                    "nullable": true
+                                                },
+                                                "updated_at": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "example": "2026-10-03T12:30:00.000000Z",
+                                                    "nullable": true
+                                                },
+                                                "hotel": {
+                                                    "description": "Presente quando o relacionamento está carregado (sempre no update).",
+                                                    "properties": {
+                                                        "id": {
+                                                            "type": "integer",
+                                                            "example": 1
+                                                        },
+                                                        "external_id": {
+                                                            "type": "integer",
+                                                            "example": 1001
+                                                        },
+                                                        "name": {
+                                                            "type": "string",
+                                                            "example": "Hotel Exemplo"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Usuário não autenticado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Quarto não encontrado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "No query results for model [App\\Models\\Room] 3"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Dados de entrada inválidos: os dados enviados não passaram pela validação do Laravel (por exemplo, campo obrigatório ausente, hotel inexistente ou external_id já usado neste hotel por outro quarto).",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "The selected hotel id is invalid."
+                                        },
+                                        "errors": {
+                                            "type": "object",
+                                            "example": {
+                                                "hotel_id": [
+                                                    "The selected hotel id is invalid."
+                                                ]
+                                            },
+                                            "additionalProperties": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Quartos"
+                ],
+                "summary": "Exclui um quarto",
+                "description": "Exclui o quarto informado. Em caso de sucesso, retorna 204 No Content, sem corpo na resposta. Exige token Bearer do Laravel Sanctum.",
+                "operationId": "ef6424e636121a7afb64777b06028a3a",
+                "parameters": [
+                    {
+                        "name": "room",
+                        "in": "path",
+                        "description": "ID interno do quarto.",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 3
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Quarto excluído com sucesso (No Content). A resposta não possui corpo."
+                    },
+                    "401": {
+                        "description": "Usuário não autenticado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Quarto não encontrado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "No query results for model [App\\Models\\Room] 3"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "patch": {
+                "tags": [
+                    "Quartos"
+                ],
+                "summary": "Atualiza um quarto (PATCH)",
+                "description": "Atualiza os dados de um quarto e retorna o quarto atualizado, com os dados do hotel. Atenção: nesta implementação o PATCH usa as mesmas regras do PUT, então hotel_id, external_id e name continuam obrigatórios; quantity é opcional. A combinação hotel_id + external_id deve ser única, ignorando o próprio quarto. Exige token Bearer do Laravel Sanctum.",
+                "operationId": "ad350d9bad928033cc38d64d32b4cd97",
+                "parameters": [
+                    {
+                        "name": "room",
+                        "in": "path",
+                        "description": "ID interno do quarto.",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 3
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "hotel_id",
+                                    "external_id",
+                                    "name"
+                                ],
+                                "properties": {
+                                    "hotel_id": {
+                                        "description": "ID do hotel ao qual o quarto pertence. O hotel precisa existir.",
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "external_id": {
+                                        "description": "Identificador do quarto no sistema externo. A combinação hotel_id + external_id deve ser única, ignorando o próprio quarto.",
+                                        "type": "integer",
+                                        "example": 999,
+                                        "minimum": 1
+                                    },
+                                    "name": {
+                                        "description": "Nome do quarto.",
+                                        "type": "string",
+                                        "example": "Quarto Executivo",
+                                        "maxLength": 255
+                                    },
+                                    "quantity": {
+                                        "description": "Opcional. Quantidade de unidades do quarto.",
+                                        "type": "integer",
+                                        "example": 2,
+                                        "maximum": 4294967295,
+                                        "minimum": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Quarto atualizado com sucesso",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 3
+                                                },
+                                                "hotel_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "external_id": {
+                                                    "type": "integer",
+                                                    "example": 999
+                                                },
+                                                "name": {
+                                                    "type": "string",
+                                                    "example": "Quarto Executivo"
+                                                },
+                                                "quantity": {
+                                                    "type": "integer",
+                                                    "example": 2
+                                                },
+                                                "created_at": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "example": "2026-10-03T12:00:00.000000Z",
+                                                    "nullable": true
+                                                },
+                                                "updated_at": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "example": "2026-10-03T12:30:00.000000Z",
+                                                    "nullable": true
+                                                },
+                                                "hotel": {
+                                                    "description": "Presente quando o relacionamento está carregado (sempre no update).",
+                                                    "properties": {
+                                                        "id": {
+                                                            "type": "integer",
+                                                            "example": 1
+                                                        },
+                                                        "external_id": {
+                                                            "type": "integer",
+                                                            "example": 1001
+                                                        },
+                                                        "name": {
+                                                            "type": "string",
+                                                            "example": "Hotel Exemplo"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Usuário não autenticado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Quarto não encontrado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "No query results for model [App\\Models\\Room] 3"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Dados de entrada inválidos: os dados enviados não passaram pela validação do Laravel (por exemplo, campo obrigatório ausente, hotel inexistente ou external_id já usado neste hotel por outro quarto).",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "The selected hotel id is invalid."
+                                        },
+                                        "errors": {
+                                            "type": "object",
+                                            "example": {
+                                                "hotel_id": [
+                                                    "The selected hotel id is invalid."
+                                                ]
+                                            },
+                                            "additionalProperties": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             }
         }
     },
