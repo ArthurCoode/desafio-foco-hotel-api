@@ -136,6 +136,350 @@
                 }
             }
         },
+        "/api/reservations": {
+            "post": {
+                "tags": [
+                    "Reservas"
+                ],
+                "summary": "Cria uma reserva",
+                "description": "Cria uma nova reserva para um quarto de um hotel e retorna a reserva criada, com hotel, quarto, hóspedes e diárias. O valor financeiro da reserva (subtotal, discount, fees e total) é calculado no servidor a partir das diárias e do cupom informado; esses campos não são enviados pelo cliente. As diárias (dailies) devem corresponder exatamente às datas da estadia: uma diária por noite, sem datas duplicadas, com check-in inclusivo e check-out exclusivo. Para check_in 2026-10-10 e check_out 2026-10-13, as diárias esperadas são 2026-10-10, 2026-10-11 e 2026-10-12. Além da validação dos campos, a criação pode falhar por regras de negócio: o quarto não pertence ao hotel informado, não há disponibilidade no período, ou o cupom informado não existe, está inativo, ainda não começou, expirou ou possui configuração inválida. Exige token Bearer do Laravel Sanctum.",
+                "operationId": "4f59911f11563f79b4f01bd02222607d",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "hotel_id",
+                                    "room_id",
+                                    "check_in",
+                                    "check_out",
+                                    "guests",
+                                    "dailies"
+                                ],
+                                "properties": {
+                                    "hotel_id": {
+                                        "description": "ID do hotel. O hotel precisa existir.",
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "room_id": {
+                                        "description": "ID do quarto. O quarto precisa existir e pertencer ao hotel informado.",
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "check_in": {
+                                        "description": "Data de entrada (inclusiva), no formato YYYY-MM-DD.",
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-10-10"
+                                    },
+                                    "check_out": {
+                                        "description": "Data de saída (exclusiva), no formato YYYY-MM-DD. Deve ser posterior ao check_in.",
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-10-13"
+                                    },
+                                    "guests": {
+                                        "description": "Lista de hóspedes. Mínimo de 1.",
+                                        "type": "array",
+                                        "items": {
+                                            "required": [
+                                                "name"
+                                            ],
+                                            "properties": {
+                                                "name": {
+                                                    "description": "Nome do hóspede.",
+                                                    "type": "string",
+                                                    "example": "Maria Silva",
+                                                    "maxLength": 255
+                                                },
+                                                "phone": {
+                                                    "description": "Opcional. Telefone do hóspede.",
+                                                    "type": "string",
+                                                    "example": "+5577999990000",
+                                                    "maxLength": 30
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "minItems": 1
+                                    },
+                                    "dailies": {
+                                        "description": "Diárias da estadia. Mínimo de 1. Deve haver exatamente uma diária por noite, sem datas duplicadas e sem datas fora do período, com check-in inclusivo e check-out exclusivo. Exemplo: com check_in 2026-10-10 e check_out 2026-10-13, as diárias esperadas são 2026-10-10, 2026-10-11 e 2026-10-12.",
+                                        "type": "array",
+                                        "items": {
+                                            "required": [
+                                                "date",
+                                                "amount"
+                                            ],
+                                            "properties": {
+                                                "date": {
+                                                    "description": "Data da diária, no formato YYYY-MM-DD.",
+                                                    "type": "string",
+                                                    "format": "date",
+                                                    "example": "2026-10-10"
+                                                },
+                                                "amount": {
+                                                    "description": "Valor da diária. Número decimal maior ou igual a zero.",
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 250,
+                                                    "minimum": 0
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "example": [
+                                            {
+                                                "date": "2026-10-10",
+                                                "amount": 250
+                                            },
+                                            {
+                                                "date": "2026-10-11",
+                                                "amount": 250
+                                            },
+                                            {
+                                                "date": "2026-10-12",
+                                                "amount": 250
+                                            }
+                                        ],
+                                        "minItems": 1
+                                    },
+                                    "coupon_code": {
+                                        "description": "Opcional. Código de cupom de desconto. O desconto é calculado no servidor.",
+                                        "type": "string",
+                                        "example": "DESCONTO10",
+                                        "nullable": true,
+                                        "maxLength": 50
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Reserva criada com sucesso",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "external_id": {
+                                                    "type": "integer",
+                                                    "example": null,
+                                                    "nullable": true
+                                                },
+                                                "hotel_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "room_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "check_in": {
+                                                    "type": "string",
+                                                    "format": "date",
+                                                    "example": "2026-10-10"
+                                                },
+                                                "check_out": {
+                                                    "type": "string",
+                                                    "format": "date",
+                                                    "example": "2026-10-13"
+                                                },
+                                                "status": {
+                                                    "description": "Status inicial da reserva criada: confirmed.",
+                                                    "type": "string",
+                                                    "example": "confirmed"
+                                                },
+                                                "subtotal": {
+                                                    "description": "Calculado no servidor: soma das diárias.",
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 750
+                                                },
+                                                "discount": {
+                                                    "description": "Calculado no servidor a partir do cupom informado.",
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 75
+                                                },
+                                                "fees": {
+                                                    "description": "Calculado no servidor. Taxas ainda não são implementadas: o valor atual é sempre 0.",
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 0
+                                                },
+                                                "total": {
+                                                    "description": "Calculado no servidor.",
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 675
+                                                },
+                                                "created_at": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "example": "2026-10-03T12:00:00.000000Z",
+                                                    "nullable": true
+                                                },
+                                                "updated_at": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "example": "2026-10-03T12:00:00.000000Z",
+                                                    "nullable": true
+                                                },
+                                                "hotel": {
+                                                    "properties": {
+                                                        "id": {
+                                                            "type": "integer",
+                                                            "example": 1
+                                                        },
+                                                        "external_id": {
+                                                            "type": "integer",
+                                                            "example": 1001
+                                                        },
+                                                        "name": {
+                                                            "type": "string",
+                                                            "example": "Hotel Exemplo"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "room": {
+                                                    "properties": {
+                                                        "id": {
+                                                            "type": "integer",
+                                                            "example": 1
+                                                        },
+                                                        "external_id": {
+                                                            "type": "integer",
+                                                            "example": 1
+                                                        },
+                                                        "name": {
+                                                            "type": "string",
+                                                            "example": "Quarto Standard"
+                                                        },
+                                                        "quantity": {
+                                                            "type": "integer",
+                                                            "example": 1
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "guests": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer",
+                                                                "example": 1
+                                                            },
+                                                            "name": {
+                                                                "type": "string",
+                                                                "example": "Maria Silva"
+                                                            },
+                                                            "phone": {
+                                                                "type": "string",
+                                                                "example": "+5577999990000",
+                                                                "nullable": true
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "dailies": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer",
+                                                                "example": 1
+                                                            },
+                                                            "date": {
+                                                                "type": "string",
+                                                                "format": "date",
+                                                                "example": "2026-10-10"
+                                                            },
+                                                            "amount": {
+                                                                "type": "number",
+                                                                "format": "float",
+                                                                "example": 250
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Usuário não autenticado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Dados enviados inválidos: falha na validação do Laravel (por exemplo, campo obrigatório ausente, hotel ou quarto inexistente, check_out não posterior ao check_in, guests ou dailies vazios, ou diárias que não correspondem exatamente às noites da estadia: duplicadas, fora do período ou em quantidade diferente do número de noites). Erros de regra de negócio na criação da reserva (quarto que não pertence ao hotel informado, sem disponibilidade no período, ou cupom inexistente, inativo, ainda não iniciado, expirado ou com configuração inválida) são lançados como DomainException pelo CreateReservationService; o status HTTP e o formato dessa resposta dependem do tratamento de exceções da aplicação.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "A hospedagem tem 3 noite(s) e exige exatamente uma diária por noite, mas foram enviadas 2."
+                                        },
+                                        "errors": {
+                                            "type": "object",
+                                            "example": {
+                                                "dailies": [
+                                                    "A hospedagem tem 3 noite(s) e exige exatamente uma diária por noite, mas foram enviadas 2."
+                                                ]
+                                            },
+                                            "additionalProperties": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/rooms": {
             "get": {
                 "tags": [
@@ -1112,6 +1456,10 @@
         {
             "name": "Autenticação",
             "description": "Autenticação"
+        },
+        {
+            "name": "Reservas",
+            "description": "Reservas"
         },
         {
             "name": "Quartos",
