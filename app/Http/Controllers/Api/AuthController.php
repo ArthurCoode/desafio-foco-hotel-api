@@ -9,12 +9,105 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use OpenApi\Attributes as OA;
 
 class AuthController extends Controller
 {
     /**
      * POST /api/login
      */
+    #[OA\Post(
+        path: '/api/login',
+        summary: 'Realiza autenticação na API',
+        description: 'Autentica um usuário e retorna um token Bearer do Laravel Sanctum.',
+        tags: ['Autenticação']
+    )]
+    #[OA\RequestBody(
+        required: true,
+        content: new OA\JsonContent(
+            required: ['email', 'password'],
+            properties: [
+                new OA\Property(
+                    property: 'email',
+                    type: 'string',
+                    format: 'email',
+                    example: 'usuario@exemplo.com'
+                ),
+                new OA\Property(
+                    property: 'password',
+                    type: 'string',
+                    example: 'senha-segura-123'
+                ),
+            ]
+        )
+    )]
+    #[OA\Response(
+        response: 200,
+        description: 'Login realizado com sucesso',
+        content: new OA\JsonContent(
+            properties: [
+                new OA\Property(
+                    property: 'message',
+                    type: 'string',
+                    example: 'Login realizado com sucesso.'
+                ),
+                new OA\Property(
+                    property: 'token',
+                    type: 'string',
+                    example: '1|abcdefghijklmnopqrstuvwxyz0123456789'
+                ),
+                new OA\Property(
+                    property: 'token_type',
+                    type: 'string',
+                    example: 'Bearer'
+                ),
+                new OA\Property(
+                    property: 'user',
+                    type: 'object',
+                    properties: [
+                        new OA\Property(property: 'id', type: 'integer', example: 1),
+                        new OA\Property(property: 'name', type: 'string', example: 'Maria Silva'),
+                        new OA\Property(property: 'email', type: 'string', example: 'usuario@exemplo.com'),
+                    ]
+                ),
+            ]
+        )
+    )]
+    #[OA\Response(
+        response: 401,
+        description: 'Credenciais inválidas',
+        content: new OA\JsonContent(
+            properties: [
+                new OA\Property(
+                    property: 'message',
+                    type: 'string',
+                    example: 'Credenciais inválidas.'
+                ),
+            ]
+        )
+    )]
+    #[OA\Response(
+        response: 422,
+        description: 'Dados de entrada inválidos: os dados enviados não passaram pela validação do Laravel.',
+        content: new OA\JsonContent(
+            properties: [
+                new OA\Property(
+                    property: 'message',
+                    type: 'string',
+                    example: 'The email field is required.'
+                ),
+                new OA\Property(
+                    property: 'errors',
+                    type: 'object',
+                    additionalProperties: new OA\AdditionalProperties(
+                        type: 'array',
+                        items: new OA\Items(type: 'string')
+                    ),
+                    example: ['email' => ['The email field is required.']]
+                ),
+            ]
+        )
+    )]
     public function login(Request $request): JsonResponse
     {
         // Em rotas de API, o Laravel retorna 422 com JSON automaticamente
