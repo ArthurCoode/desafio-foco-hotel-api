@@ -53,6 +53,7 @@ O projeto foi desenvolvido como **desafio técnico**, com o objetivo de demonstr
 
 ```bash
 git clone <url-do-repositorio>
+
 cd <diretorio-do-projeto>
 ```
 
@@ -70,7 +71,7 @@ Copie o arquivo `.env.example` para `.env`:
 cp .env.example .env
 ```
 
-No Windows PowerShell, pode ser utilizado:
+No Windows PowerShell:
 
 ```powershell
 Copy-Item .env.example .env
@@ -167,7 +168,7 @@ Os valores acima são exemplos. O arquivo `.env` contém configurações locais 
 
 ---
 
-## Banco de dados
+# Banco de dados
 
 | Tabela                   | Descrição                                                                         |
 | ------------------------ | --------------------------------------------------------------------------------- |
@@ -211,12 +212,13 @@ Models / Eloquent
 Banco de dados
 ```
 
-O comando Artisan é responsável por iniciar o processo. A leitura, validação e persistência dos dados ficam nos serviços de `app/Services/Import`.
+O comando Artisan inicia o processo. A leitura, validação e persistência dos dados ficam nos serviços de `app/Services/Import`.
 
 A estrutura principal é:
 
 ```text
 app/Services/Import/
+
 ├── XmlImportService.php
 ├── HotelImportService.php
 ├── RoomImportService.php
@@ -310,8 +312,6 @@ Executa o comando no minuto 0 de cada hora.
 
 Evita que duas execuções da mesma tarefa ocorram simultaneamente.
 
-O Scheduler utiliza mecanismos de lock do cache para controlar execuções concorrentes.
-
 ## CRON, Scheduler e comando
 
 | Componente        | Papel                                               |
@@ -360,7 +360,7 @@ As rotas podem ser verificadas com:
 php artisan route:list
 ```
 
-Os endpoints protegidos exigem um Bearer Token obtido através do endpoint de login.
+A rota de login é pública. As demais rotas relacionadas aos dados protegidos exigem autenticação através de Bearer Token.
 
 ---
 
@@ -497,6 +497,12 @@ Os parâmetros de criação e atualização são validados através dos Form Req
 | `quantity`    | Quantidade de unidades disponíveis |
 
 A combinação de `hotel_id` e `external_id` deve ser única.
+
+### Observação sobre PUT e PATCH
+
+O endpoint `PATCH` está disponível para seguir a interface REST da API, porém atualmente utiliza o mesmo `UpdateRoomRequest` do `PUT`.
+
+Portanto, **a implementação atual não trata PATCH como atualização parcialmente opcional**. Os campos definidos como obrigatórios na validação continuam sendo exigidos.
 
 ---
 
@@ -664,7 +670,7 @@ discount = 0.00
 
 ### Taxas
 
-O campo `fees` existe para suportar futuras taxas, juros ou serviços adicionais.
+O campo `fees` existe para suportar taxas, juros ou serviços adicionais.
 
 Atualmente:
 
@@ -798,13 +804,14 @@ A API utiliza códigos HTTP apropriados para representar diferentes situações.
 
 | Código | Significado                                      |
 | ------ | ------------------------------------------------ |
+| `200`  | Requisição processada com sucesso                |
 | `201`  | Recurso criado                                   |
 | `204`  | Operação realizada sem conteúdo de resposta      |
 | `401`  | Não autenticado                                  |
 | `404`  | Recurso não encontrado                           |
 | `422`  | Dados inválidos ou regra de negócio não atendida |
 
-Erros de validação utilizam o formato padrão do Laravel, contendo uma mensagem e, quando aplicável, erros associados aos campos.
+Erros de validação utilizam o formato JSON padrão do Laravel, contendo uma mensagem e, quando aplicável, erros associados aos campos.
 
 ---
 
@@ -831,12 +838,15 @@ Para executar a suíte:
 php artisan test
 ```
 
+A suíte foi validada durante o desenvolvimento com testes cobrindo as principais regras implementadas.
+
 ---
 
 # Estrutura do projeto
 
 ```text
 app/
+
 ├── Console/
 │   └── Commands/
 │       └── ImportHotelDataCommand.php
@@ -844,7 +854,9 @@ app/
 ├── Http/
 │   ├── Controllers/
 │   │   └── Api/
+│   │
 │   ├── Requests/
+│   │
 │   └── Resources/
 │
 ├── Models/
@@ -896,7 +908,7 @@ Isso mantém os Controllers menores e facilita testes e reutilização.
 
 Os Form Requests são responsáveis pela validação estrutural dos dados recebidos.
 
-Por exemplo, o `StoreReservationRequest` verifica se o `coupon_code` é uma string válida, enquanto a validade do cupom é responsabilidade do `CouponService`.
+Por exemplo, o `StoreReservationRequest` verifica a estrutura e os formatos dos dados da reserva, enquanto a validade do cupom é responsabilidade do `CouponService`.
 
 ### API Resources
 
@@ -1007,17 +1019,36 @@ http://127.0.0.1:8000/api/documentation
 
 ---
 
-# Melhorias futuras
+# Considerações finais
 
-As seguintes funcionalidades podem ser implementadas em uma evolução do projeto:
+O projeto foi desenvolvido com foco em uma API REST organizada, segura e preparada para evolução.
 
+Durante a implementação, foram priorizados:
+
+* separação de responsabilidades;
+* regras de negócio desacopladas dos Controllers;
+* validação de dados;
+* integridade das informações;
+* controle de concorrência;
+* segurança dos endpoints;
+* cálculos financeiros no backend;
+* importação idempotente;
+* tratamento explícito de inconsistências;
+* testes automatizados;
+* documentação da API.
+
+O domínio também foi estruturado de forma a permitir futuras evoluções, como:
+
+* gerenciamento completo de pagamentos;
 * gestão de usuários e permissões;
-* logs de aplicação mais estruturados;
-* fluxo completo de pagamentos;
-* taxas adicionais e juros;
-* limite de utilizações por cupom;
+* logs e observabilidade mais estruturados;
 * regras promocionais mais avançadas;
-* endpoint específico para hotéis;
-* frontend integrado à API utilizando Blade e JavaScript;
-* autenticação baseada em cookies HttpOnly para uma aplicação web integrada;
-* melhorias adicionais de observabilidade e monitoramento.
+* limites de utilização de cupons;
+* taxas, juros e serviços adicionais;
+* endpoints adicionais para gerenciamento de hotéis;
+* frontend integrado à API;
+* melhorias de monitoramento e operação em ambiente de produção.
+
+Essas funcionalidades não fazem parte do escopo atualmente implementado e podem ser adicionadas conforme novas necessidades do sistema.
+
+O backend atual representa a base principal do projeto, com as principais regras de negócio, autenticação, persistência, importação, documentação e testes estruturados para permitir sua evolução.
