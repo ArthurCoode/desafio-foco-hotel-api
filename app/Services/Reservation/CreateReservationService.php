@@ -50,7 +50,7 @@ class CreateReservationService
             }
 
             if (! $this->availability->isAvailable($room, $data['check_in'], $data['check_out'])) {
-                throw new DomainException(
+                throw new RoomUnavailableException(
                     "Não há disponibilidade para o quarto {$room->id} no período informado."
                 );
             }

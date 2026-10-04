@@ -199,8 +199,26 @@ class ReservationController extends Controller
                 )
             ),
             new OA\Response(
+                response: 404,
+                description: 'Recurso não encontrado.',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'Recurso não encontrado.'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 409,
+                description: 'Quarto indisponível para o período informado.',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'Não há disponibilidade para o quarto 1 no período informado.'),
+                    ]
+                )
+            ),
+            new OA\Response(
                 response: 422,
-                description: 'Dados enviados inválidos: falha na validação do Laravel (por exemplo, campo obrigatório ausente, hotel ou quarto inexistente, check_out não posterior ao check_in, guests ou dailies vazios, ou diárias que não correspondem exatamente às noites da estadia: duplicadas, fora do período ou em quantidade diferente do número de noites). Erros de regra de negócio na criação da reserva (quarto que não pertence ao hotel informado, sem disponibilidade no período, ou cupom inexistente, inativo, ainda não iniciado, expirado ou com configuração inválida) são lançados como DomainException pelo CreateReservationService; o status HTTP e o formato dessa resposta dependem do tratamento de exceções da aplicação.',
+                description: 'Dados inválidos ou regra de negócio violada. Retorna HTTP 422 nos casos de falha de validação do Laravel (campo obrigatório ausente, hotel ou quarto inexistente, check_out não posterior ao check_in, guests ou dailies vazios, ou diárias duplicadas, fora do período ou em quantidade diferente do número de noites) e de regra de negócio na criação da reserva (quarto que não pertence ao hotel informado, ou cupom inexistente, inativo, ainda não iniciado, expirado ou inválido). Falhas de validação trazem os campos message e errors; erros de regra de negócio trazem apenas message. A indisponibilidade do quarto não retorna 422: veja a resposta 409.',
                 content: new OA\JsonContent(
                     properties: [
                         new OA\Property(property: 'message', type: 'string', example: 'A hospedagem tem 3 noite(s) e exige exatamente uma diária por noite, mas foram enviadas 2.'),

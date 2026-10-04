@@ -1,12 +1,13 @@
 <?php
 
-use DomainException;
+use App\Services\Reservation\RoomUnavailableException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -30,15 +31,32 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $exceptions->shouldRenderJsonWhen($wantsJson);
 
+        // Cobre rota inexistente e ModelNotFoundException: o Laravel converte esta
+        // última em NotFoundHttpException antes de executar os callbacks de render.
+        $exceptions->render(function (NotFoundHttpException $e, Request $request) use ($wantsJson): ?JsonResponse {
+            if (! $wantsJson($request)) {
+                return null;
+            }
+
+            return response()->json(
+                ['message' => 'Recurso não encontrado.'],
+                Response::HTTP_NOT_FOUND
+            );
+        });
+
+        $exceptions->render(function (RoomUnavailableException $e, Request $request) use ($wantsJson): ?JsonResponse {
+            if (! $wantsJson($request)) {
+                return null;
+            }
+
+            return response()->json(['message' => $e->getMessage()], Response::HTTP_CONFLICT);
+        });
+
         $exceptions->render(function (DomainException $e, Request $request) use ($wantsJson): ?JsonResponse {
             if (! $wantsJson($request)) {
                 return null;
             }
 
-            $status = str_starts_with($e->getMessage(), 'Não há disponibilidade')
-                ? Response::HTTP_CONFLICT
-                : Response::HTTP_UNPROCESSABLE_ENTITY;
-
-            return response()->json(['message' => $e->getMessage()], $status);
+            return response()->json(['message' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         });
     })->create();
