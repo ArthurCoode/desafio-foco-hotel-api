@@ -2,7 +2,7 @@
 
 ## Sobre o projeto
 
-O **Foco Hotel API** é uma API REST desenvolvida em Laravel para o gerenciamento de hotéis, quartos e reservas.
+O **Foco Hotel API** é uma API REST desenvolvida em Laravel para o gerenciamento de hotéis, quartos, reservas e pagamentos.
 
 O projeto inclui:
 
@@ -13,6 +13,9 @@ O projeto inclui:
 * controle de quantidade de unidades disponíveis por quarto;
 * cálculo financeiro das reservas (subtotal, desconto, taxas e total);
 * aplicação de cupons de desconto;
+* gerenciamento de pagamentos vinculados às reservas;
+* controle de saldo e total pago das reservas;
+* prevenção de pagamentos superiores ao saldo restante;
 * autenticação da API utilizando Laravel Sanctum;
 * documentação da API utilizando Swagger/OpenAPI 3;
 * testes automatizados com PHPUnit;
@@ -116,7 +119,7 @@ COLLATE utf8mb4_unicode_ci;
 php artisan migrate
 ```
 
-As migrations criam as tabelas da aplicação, incluindo as estruturas necessárias para autenticação com Laravel Sanctum.
+As migrations criam as tabelas da aplicação, incluindo as estruturas necessárias para autenticação com Laravel Sanctum, reservas, cupons e pagamentos.
 
 ### 7. Importe os dados dos XMLs
 
@@ -177,7 +180,7 @@ Os valores acima são exemplos. O arquivo `.env` contém configurações locais 
 | `reservations`           | Reservas, com período, status e valores (`subtotal`, `discount`, `fees`, `total`) |
 | `guests`                 | Hóspedes vinculados a uma reserva                                                 |
 | `reservation_dailies`    | Diárias de uma reserva, contendo data e valor                                     |
-| `payments`               | Pagamentos vinculados às reservas                                                 |
+| `payments`               | Pagamentos vinculados às reservas, com forma, valor e data de pagamento           |
 | `coupons`                | Cupons de desconto                                                                |
 | `reservation_coupons`    | Cupons aplicados às reservas e respectivos descontos                              |
 | `import_errors`          | Inconsistências encontradas durante a importação dos XMLs                         |
@@ -420,6 +423,11 @@ PATCH  /api/rooms/{room}
 DELETE /api/rooms/{room}
 
 POST   /api/reservations
+
+GET    /api/reservations/{reservation}/payments
+POST   /api/reservations/{reservation}/payments
+GET    /api/reservations/{reservation}/payments/{payment}
+DELETE /api/reservations/{reservation}/payments/{payment}
 ```
 
 Sem um token válido, a API retorna:
@@ -464,7 +472,15 @@ Para regenerar a documentação:
 php artisan l5-swagger:generate
 ```
 
-A documentação permite consultar os endpoints, parâmetros, respostas e requisitos de autenticação da API.
+A documentação contempla os principais endpoints da API, incluindo:
+
+* autenticação;
+* quartos;
+* reservas;
+* pagamentos;
+* parâmetros;
+* respostas;
+* requisitos de autenticação.
 
 O Swagger também pode ser utilizado para testar os endpoints protegidos informando o Bearer Token.
 
@@ -604,6 +620,189 @@ e consiga alterar o valor real da reserva.
 | `401`  | Usuário não autenticado                          |
 | `422`  | Dados inválidos ou regra de negócio não atendida |
 
+Quando o quarto não possui disponibilidade para o período informado, a API retorna:
+
+```http
+409 Conflict
+```
+
+---
+
+# API de pagamentos
+
+O sistema permite registrar e gerenciar pagamentos vinculados às reservas.
+
+O gerenciamento atual é feito no próprio sistema e **não representa uma integração com gateway de pagamento**.
+
+## Endpoints
+
+| Método   | Endpoint                                             | Finalidade          |
+| -------- | ---------------------------------------------------- | ------------------- |
+| `GET`    | `/api/reservations/{reservation}/payments`           | Listar pagamentos   |
+| `POST`   | `/api/reservations/{reservation}/payments`           | Registrar pagamento |
+| `GET`    | `/api/reservations/{reservation}/payments/{payment}` | Consultar pagamento |
+| `DELETE` | `/api/reservations/{reservation}/payments/{payment}` | Excluir pagamento   |
+
+Todos os endpoints exigem autenticação através do Laravel Sanctum.
+
+## Registrar pagamento
+
+```http
+POST /api/reservations/{reservation}/payments
+```
+
+Campos:
+
+| Campo     | Obrigatório | Regras                                         |
+| --------- | ----------- | ---------------------------------------------- |
+| `method`  | Sim         | String com até 50 caracteres                   |
+| `amount`  | Sim         | Valor maior que zero, com até 2 casas decimais |
+| `paid_at` | Não         | Data válida                                    |
+
+Exemplo:
+
+```json
+{
+    "method": "credit_card",
+    "amount": 100.00,
+    "paid_at": "2026-11-10 10:00:00"
+}
+```
+
+Em caso de sucesso:
+
+```http
+201 Created
+```
+
+A resposta contém:
+
+```json
+{
+    "message": "Pagamento registrado com sucesso.",
+    "payment": {
+        "id": 1,
+        "reservation_id": 1,
+        "method": "credit_card",
+        "amount": "100.00",
+        "paid_at": "2026-11-10T10:00:00.000000Z",
+        "created_at": "2026-11-10T10:00:00.000000Z"
+    },
+    "total_paid": "100.00",
+    "remaining_balance": "200.00"
+}
+```
+
+## Listar pagamentos
+
+```http
+GET /api/reservations/{reservation}/payments
+```
+
+A resposta apresenta:
+
+* pagamentos registrados;
+* total já pago;
+* saldo restante.
+
+Exemplo:
+
+```json
+{
+    "payments": [
+        {
+            "id": 1,
+            "reservation_id": 1,
+            "method": "credit_card",
+            "amount": "100.00",
+            "paid_at": "2026-11-10T10:00:00.000000Z",
+            "created_at": "2026-11-10T10:00:00.000000Z"
+        }
+    ],
+    "total_paid": "100.00",
+    "remaining_balance": "200.00"
+}
+```
+
+## Consultar pagamento
+
+```http
+GET /api/reservations/{reservation}/payments/{payment}
+```
+
+O pagamento precisa pertencer à reserva informada.
+
+Caso contrário, a API retorna:
+
+```http
+404 Not Found
+```
+
+```json
+{
+    "message": "Pagamento não encontrado."
+}
+```
+
+## Excluir pagamento
+
+```http
+DELETE /api/reservations/{reservation}/payments/{payment}
+```
+
+Quando o pagamento pertence à reserva, a API retorna:
+
+```http
+204 No Content
+```
+
+Caso o pagamento não pertença à reserva informada:
+
+```http
+404 Not Found
+```
+
+## Regra de saldo
+
+O total pago nunca pode ultrapassar o total da reserva.
+
+Exemplo:
+
+```text
+Total da reserva: 300.00
+Pagamento 1:      100.00
+Pagamento 2:      150.00
+Saldo restante:    50.00
+```
+
+Um novo pagamento de `50.00` é permitido.
+
+Um novo pagamento de `100.00` é rejeitado:
+
+```http
+422 Unprocessable Entity
+```
+
+Exemplo:
+
+```json
+{
+    "message": "O pagamento de 100.00 excede o saldo restante da reserva (50.00)."
+}
+```
+
+A regra é aplicada no `PaymentService`, e não apenas na validação HTTP.
+
+Isso garante que a regra financeira também seja respeitada caso o serviço seja utilizado por outro fluxo da aplicação.
+
+## Concorrência
+
+O registro do pagamento utiliza uma transação e `lockForUpdate()` na reserva.
+
+Isso reduz o risco de duas operações concorrentes utilizarem simultaneamente o mesmo saldo restante e registrarem pagamentos que ultrapassem o total da reserva.
+
+Os valores utilizados nas comparações financeiras são convertidos para centavos inteiros.
+
 ---
 
 # Regras de negócio
@@ -638,7 +837,9 @@ Por exemplo:
 
 ```text
 quantity = 3
+
 reservas conflitantes = 2
+
 disponibilidade = 1
 ```
 
@@ -660,7 +861,7 @@ subtotal = soma(dailies.amount)
 
 ### Desconto
 
-O desconto é calculado pelo backend através do `CouponService`.
+O desconto é calculado pelo `CouponService`.
 
 Sem cupom:
 
@@ -677,6 +878,8 @@ Atualmente:
 ```text
 fees = 0.00
 ```
+
+As regras específicas de taxas e juros ainda não estão implementadas.
 
 ### Total
 
@@ -796,6 +999,8 @@ Cupom aplicado
 
 Caso alguma etapa falhe, a transação é revertida e os registros não são persistidos parcialmente.
 
+O registro de pagamentos também utiliza transação, garantindo que o pagamento seja criado somente após a validação do saldo disponível.
+
 ---
 
 # Tratamento de erros
@@ -809,6 +1014,7 @@ A API utiliza códigos HTTP apropriados para representar diferentes situações.
 | `204`  | Operação realizada sem conteúdo de resposta      |
 | `401`  | Não autenticado                                  |
 | `404`  | Recurso não encontrado                           |
+| `409`  | Conflito, como quarto indisponível               |
 | `422`  | Dados inválidos ou regra de negócio não atendida |
 
 Erros de validação utilizam o formato JSON padrão do Laravel, contendo uma mensagem e, quando aplicável, erros associados aos campos.
@@ -819,6 +1025,13 @@ Erros de validação utilizam o formato JSON padrão do Laravel, contendo uma me
 
 O projeto possui testes automatizados com PHPUnit.
 
+A suíte atual possui:
+
+```text
+55 testes
+203 assertions
+```
+
 Os testes cobrem principalmente:
 
 * autenticação;
@@ -827,18 +1040,36 @@ Os testes cobrem principalmente:
 * quantidade de quartos;
 * cálculo financeiro;
 * cupons;
+* pagamentos;
 * validações da API;
 * endpoints de quartos;
 * integração de cupons com reservas;
-* regras de negócio da API.
+* regras de negócio da API;
+* segurança dos endpoints.
+
+## Testes de pagamentos
+
+Os testes de pagamentos cobrem:
+
+* autenticação dos endpoints;
+* registro de pagamento;
+* cálculo do total pago;
+* cálculo do saldo restante;
+* pagamento com valor zero;
+* pagamento com valor negativo;
+* pagamento acima do saldo;
+* múltiplos pagamentos;
+* pagamento até atingir exatamente o total;
+* consulta de pagamento;
+* tentativa de acessar pagamento de outra reserva;
+* exclusão de pagamento;
+* garantia de que pagamentos inválidos não sejam persistidos.
 
 Para executar a suíte:
 
 ```bash
 php artisan test
 ```
-
-A suíte foi validada durante o desenvolvimento com testes cobrindo as principais regras implementadas.
 
 ---
 
@@ -873,26 +1104,28 @@ app/
 │   │   ├── PricingService.php
 │   │   ├── CouponService.php
 │   │   ├── CreateReservationService.php
+│   │   ├── PaymentService.php
 │   │   ├── CouponNotFoundException.php
 │   │   ├── InvalidCouponException.php
-│   │   └── AppliedCoupon.php
+│   │   ├── AppliedCoupon.php
+│   │   └── PaymentExceedsReservationTotalException.php
 │   │
 │   └── Room/
 │
 └── OpenApi.php
 ```
 
-| Camada                 | Responsabilidade                                      |
-| ---------------------- | ----------------------------------------------------- |
-| `Console/Commands`     | Comandos Artisan, como `hotel:import`                 |
-| `Http/Controllers`     | Recebem requisições e coordenam a aplicação           |
-| `Http/Requests`        | Validação da estrutura dos dados de entrada           |
-| `Http/Resources`       | Padronização das respostas JSON                       |
-| `Models`               | Entidades Eloquent e relacionamentos                  |
-| `Services/Import`      | Leitura, validação e persistência dos XMLs            |
-| `Services/Reservation` | Disponibilidade, preços, cupons e criação de reservas |
-| `Services/Room`        | Regras relacionadas a quartos                         |
-| `OpenApi.php`          | Configuração principal da documentação OpenAPI        |
+| Camada                 | Responsabilidade                                                  |
+| ---------------------- | ----------------------------------------------------------------- |
+| `Console/Commands`     | Comandos Artisan, como `hotel:import`                             |
+| `Http/Controllers`     | Recebem requisições e coordenam a aplicação                       |
+| `Http/Requests`        | Validação da estrutura dos dados de entrada                       |
+| `Http/Resources`       | Padronização das respostas JSON                                   |
+| `Models`               | Entidades Eloquent e relacionamentos                              |
+| `Services/Import`      | Leitura, validação e persistência dos XMLs                        |
+| `Services/Reservation` | Disponibilidade, preços, cupons, criação de reservas e pagamentos |
+| `Services/Room`        | Regras relacionadas a quartos                                     |
+| `OpenApi.php`          | Configuração principal da documentação OpenAPI                    |
 
 ---
 
@@ -918,9 +1151,13 @@ Os API Resources padronizam as respostas JSON retornadas pela API.
 
 A criação de reservas utiliza transações para garantir que reserva, hóspedes, diárias e cupom aplicado sejam persistidos de forma atômica.
 
+O registro de pagamentos também utiliza transações para preservar a integridade financeira da operação.
+
 ### Controle de concorrência
 
 O quarto utilizado na criação da reserva é bloqueado com `lockForUpdate()` dentro da transação, reduzindo o risco de duas requisições concorrentes ultrapassarem a quantidade disponível.
+
+O registro de pagamentos também utiliza `lockForUpdate()` na reserva antes de verificar o saldo restante.
 
 ### Cálculo financeiro no backend
 
@@ -941,6 +1178,8 @@ a partir dos dados válidos recebidos e das regras de negócio.
 
 Os cálculos financeiros utilizam centavos inteiros para evitar problemas de precisão de ponto flutuante.
 
+Essa abordagem também é utilizada no controle de pagamentos.
+
 ### IDs externos separados dos internos
 
 Os identificadores dos XMLs são armazenados como `external_id`, mantendo os IDs internos do banco independentes da origem dos dados.
@@ -956,6 +1195,20 @@ Problemas encontrados nos XMLs são registrados em `import_errors` sem alterar o
 ### Autenticação com Sanctum
 
 As rotas da API que manipulam dados protegidos utilizam Laravel Sanctum e exigem autenticação através de Bearer Token.
+
+### Gerenciamento de pagamentos
+
+As regras de pagamento foram isoladas no `PaymentService`, mantendo a lógica financeira fora do Controller.
+
+O serviço controla:
+
+* registro dos pagamentos;
+* total pago;
+* saldo restante;
+* limite máximo de pagamento;
+* operações concorrentes.
+
+O pagamento é registrado dentro de uma transação e a reserva é bloqueada com `lockForUpdate()` durante a verificação do saldo.
 
 ### Documentação OpenAPI
 
@@ -1032,6 +1285,7 @@ Durante a implementação, foram priorizados:
 * controle de concorrência;
 * segurança dos endpoints;
 * cálculos financeiros no backend;
+* gerenciamento de pagamentos;
 * importação idempotente;
 * tratamento explícito de inconsistências;
 * testes automatizados;
@@ -1039,7 +1293,10 @@ Durante a implementação, foram priorizados:
 
 O domínio também foi estruturado de forma a permitir futuras evoluções, como:
 
-* gerenciamento completo de pagamentos;
+* integração com gateways de pagamento;
+* estornos e reembolsos;
+* pagamentos parcelados;
+* status e conciliação de pagamentos;
 * gestão de usuários e permissões;
 * logs e observabilidade mais estruturados;
 * regras promocionais mais avançadas;
@@ -1051,4 +1308,4 @@ O domínio também foi estruturado de forma a permitir futuras evoluções, como
 
 Essas funcionalidades não fazem parte do escopo atualmente implementado e podem ser adicionadas conforme novas necessidades do sistema.
 
-O backend atual representa a base principal do projeto, com as principais regras de negócio, autenticação, persistência, importação, documentação e testes estruturados para permitir sua evolução.
+O backend atual representa a base principal do projeto, com as principais regras de negócio, autenticação, persistência, importação, gerenciamento de pagamentos, documentação e testes estruturados para permitir sua evolução.

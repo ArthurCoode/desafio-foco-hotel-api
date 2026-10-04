@@ -136,6 +136,356 @@
                 }
             }
         },
+        "/api/reservations/{reservation}/payments": {
+            "get": {
+                "tags": [
+                    "Pagamentos"
+                ],
+                "summary": "Lista os pagamentos de uma reserva",
+                "description": "Retorna os pagamentos do mais recente para o mais antigo, com o total pago e o saldo restante.",
+                "operationId": "listReservationPayments",
+                "parameters": [
+                    {
+                        "name": "reservation",
+                        "in": "path",
+                        "description": "ID da reserva",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lista de pagamentos da reserva",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "payments": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Payment"
+                                            }
+                                        },
+                                        "total_paid": {
+                                            "type": "string",
+                                            "example": "100.00"
+                                        },
+                                        "remaining_balance": {
+                                            "type": "string",
+                                            "example": "200.00"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Reserva não encontrada"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Pagamentos"
+                ],
+                "summary": "Registra um pagamento para uma reserva",
+                "description": "O valor não pode fazer o total pago ultrapassar o total da reserva.",
+                "operationId": "storeReservationPayment",
+                "parameters": [
+                    {
+                        "name": "reservation",
+                        "in": "path",
+                        "description": "ID da reserva",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "method",
+                                    "amount"
+                                ],
+                                "properties": {
+                                    "method": {
+                                        "description": "Forma de pagamento",
+                                        "type": "string",
+                                        "example": "credit_card",
+                                        "maxLength": 50
+                                    },
+                                    "amount": {
+                                        "description": "Valor pago, maior que zero, com no máximo 2 casas decimais",
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 100
+                                    },
+                                    "paid_at": {
+                                        "description": "Data do pagamento (opcional)",
+                                        "type": "string",
+                                        "example": "2022-12-01 10:00:00",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Pagamento registrado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Pagamento registrado com sucesso."
+                                        },
+                                        "payment": {
+                                            "$ref": "#/components/schemas/Payment"
+                                        },
+                                        "total_paid": {
+                                            "type": "string",
+                                            "example": "100.00"
+                                        },
+                                        "remaining_balance": {
+                                            "type": "string",
+                                            "example": "200.00"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Reserva não encontrada"
+                    },
+                    "422": {
+                        "description": "Dados inválidos ou pagamento superior ao saldo restante",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "O pagamento de 250.00 excede o saldo restante da reserva (200.00)."
+                                        },
+                                        "errors": {
+                                            "description": "Presente apenas em erros de validação dos campos",
+                                            "type": "object",
+                                            "example": {
+                                                "amount": [
+                                                    "The amount field must be greater than 0."
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/reservations/{reservation}/payments/{payment}": {
+            "get": {
+                "tags": [
+                    "Pagamentos"
+                ],
+                "summary": "Exibe um pagamento de uma reserva",
+                "operationId": "showReservationPayment",
+                "parameters": [
+                    {
+                        "name": "reservation",
+                        "in": "path",
+                        "description": "ID da reserva",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "payment",
+                        "in": "path",
+                        "description": "ID do pagamento",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Pagamento encontrado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "payment": {
+                                            "$ref": "#/components/schemas/Payment"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Pagamento não pertence à reserva informada (ou reserva/pagamento inexistente)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaymentNotFound"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Pagamentos"
+                ],
+                "summary": "Exclui um pagamento de uma reserva",
+                "operationId": "deleteReservationPayment",
+                "parameters": [
+                    {
+                        "name": "reservation",
+                        "in": "path",
+                        "description": "ID da reserva",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "payment",
+                        "in": "path",
+                        "description": "ID do pagamento",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Pagamento excluído (sem conteúdo)"
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Pagamento não pertence à reserva informada (ou reserva/pagamento inexistente)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaymentNotFound"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/api/reservations": {
             "post": {
                 "tags": [
@@ -1476,6 +1826,57 @@
         }
     },
     "components": {
+        "schemas": {
+            "Payment": {
+                "required": [
+                    "id",
+                    "reservation_id",
+                    "method",
+                    "amount",
+                    "paid_at",
+                    "created_at"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "reservation_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "method": {
+                        "type": "string",
+                        "example": "credit_card"
+                    },
+                    "amount": {
+                        "type": "string",
+                        "example": "100.00"
+                    },
+                    "paid_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2022-12-01T10:00:00.000000Z",
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2022-12-01T10:00:00.000000Z"
+                    }
+                },
+                "type": "object"
+            },
+            "PaymentNotFound": {
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "example": "Pagamento não encontrado."
+                    }
+                },
+                "type": "object"
+            }
+        },
         "securitySchemes": {
             "bearerAuth": {
                 "type": "http",
@@ -1488,6 +1889,10 @@
         {
             "name": "Autenticação",
             "description": "Autenticação"
+        },
+        {
+            "name": "Pagamentos",
+            "description": "Pagamentos"
         },
         {
             "name": "Reservas",

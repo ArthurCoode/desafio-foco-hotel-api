@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\ReservationController;
 use App\Http\Controllers\Api\RoomController;
 use Illuminate\Http\Request;
@@ -18,4 +19,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('rooms', RoomController::class);
 
     Route::post('/reservations', [ReservationController::class, 'store']);
+
+    // Pagamentos de uma reserva.
+    Route::get('/reservations/{reservation}/payments', [PaymentController::class, 'index']);
+    Route::post('/reservations/{reservation}/payments', [PaymentController::class, 'store']);
+    Route::get('/reservations/{reservation}/payments/{payment}', [PaymentController::class, 'show']);
+    Route::delete('/reservations/{reservation}/payments/{payment}', [PaymentController::class, 'destroy']);
 });
