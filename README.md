@@ -1,94 +1,413 @@
 # Foco Hotel API
 
-## Sobre o projeto
+API REST para gerenciamento de hotéis, quartos, reservas, hóspedes, pagamentos e cupons, desenvolvida em Laravel como parte de um desafio técnico.
 
-O **Foco Hotel API** é uma API REST desenvolvida em Laravel para o gerenciamento de hotéis, quartos, reservas e pagamentos.
+O projeto foi construído com foco não apenas no funcionamento dos endpoints, mas também em **organização de código, separação de responsabilidades, integridade de dados, regras de negócio, idempotência, segurança, concorrência, testes automatizados, documentação e facilidade de evolução**.
 
-O projeto inclui:
+---
 
-* importação de dados a partir de arquivos XML;
-* importação idempotente, evitando duplicidade de registros;
-* registro de inconsistências encontradas nos dados de origem;
-* regras de disponibilidade de quartos por período;
-* controle de quantidade de unidades disponíveis por quarto;
-* cálculo financeiro das reservas (subtotal, desconto, taxas e total);
-* aplicação de cupons de desconto;
-* gerenciamento de pagamentos vinculados às reservas;
-* controle de saldo e total pago das reservas;
-* prevenção de pagamentos superiores ao saldo restante;
-* autenticação da API utilizando Laravel Sanctum;
-* documentação da API utilizando Swagger/OpenAPI 3;
+## Sumário
+
+* [Sobre o projeto](#sobre-o-projeto)
+* [Requisitos do desafio](#requisitos-do-desafio)
+* [Principais funcionalidades](#principais-funcionalidades)
+* [Tecnologias](#tecnologias)
+* [Arquitetura](#arquitetura)
+* [Pré-requisitos](#pré-requisitos)
+* [Execução com Docker](#execução-com-docker)
+* [Instalação local](#instalação-local)
+* [Configuração do ambiente](#configuração-do-ambiente)
+* [Banco de dados](#banco-de-dados)
+* [Importação dos XMLs](#importação-dos-xmls)
+* [Idempotência da importação](#idempotência-da-importação)
+* [Tratamento de inconsistências](#tratamento-de-inconsistências)
+* [Scheduler e CRON](#scheduler-e-cron)
+* [Autenticação](#autenticação)
+* [Usuário de teste](#usuário-de-teste)
+* [API REST](#api-rest)
+* [API de quartos](#api-de-quartos)
+* [API de reservas](#api-de-reservas)
+* [Regras de disponibilidade](#regras-de-disponibilidade)
+* [Cálculo financeiro](#cálculo-financeiro)
+* [Cupons e promoções](#cupons-e-promoções)
+* [API de pagamentos](#api-de-pagamentos)
+* [Concorrência e transações](#concorrência-e-transações)
+* [Tratamento de erros](#tratamento-de-erros)
+* [Swagger / OpenAPI](#swagger--openapi)
+* [Testes automatizados](#testes-automatizados)
+* [Estrutura do projeto](#estrutura-do-projeto)
+* [Principais decisões técnicas](#principais-decisões-técnicas)
+* [Validação dos dados importados](#validação-dos-dados-importados)
+* [Comandos úteis](#comandos-úteis)
+* [Status do desafio](#status-do-desafio)
+* [Possíveis evoluções](#possíveis-evoluções)
+* [Considerações finais](#considerações-finais)
+
+---
+
+# Sobre o projeto
+
+O **Foco Hotel API** é uma API REST desenvolvida em **PHP 8.5 e Laravel 13** para gerenciamento de dados hoteleiros.
+
+O sistema foi desenvolvido a partir dos XMLs fornecidos no desafio e posteriormente evoluído para contemplar regras de negócio relacionadas a reservas, disponibilidade, quantidade de unidades, descontos, pagamentos e autenticação.
+
+O projeto possui dois fluxos principais:
+
+### Importação de dados
+
+Os dados fornecidos em XML são processados por um comando Artisan, validados e persistidos no banco de dados.
+
+```text
+XML
+ │
+ ▼
+Artisan Command
+ │
+ ▼
+XmlImportService
+ │
+ ├── HotelImportService
+ ├── RoomImportService
+ └── ReservationImportService
+ │
+ ▼
+Models / Eloquent
+ │
+ ▼
+Banco de dados
+```
+
+### Operações da API
+
+As operações realizadas pelos consumidores da API seguem uma separação semelhante:
+
+```text
+HTTP Request
+ │
+ ▼
+Middleware de autenticação
+ │
+ ▼
+Form Request
+ │
+ ▼
+Controller
+ │
+ ▼
+Service
+ │
+ ▼
+Model / Database
+ │
+ ▼
+API Resource
+ │
+ ▼
+JSON Response
+```
+
+Essa separação evita concentrar regras de negócio nos Controllers e facilita testes, manutenção e evolução.
+
+---
+
+# Requisitos do desafio
+
+O projeto atende os principais requisitos propostos:
+
+* documentação do processo de importação;
+* modelagem do banco de dados baseada nos XMLs;
+* comando PHP/Laravel para importação dos XMLs;
+* execução periódica através do Laravel Scheduler e CRON;
+* importação idempotente;
+* tratamento de inconsistências;
+* CRUD REST de quartos;
+* criação de reservas;
+* cálculo financeiro no backend;
+* respostas JSON;
+* autenticação;
+* documentação Swagger/OpenAPI 3;
+* testes automatizados;
+* Docker;
+* controle de concorrência;
+* gerenciamento de pagamentos;
+* cupons e promoções.
+
+Além dos requisitos principais, foram implementadas preocupações adicionais relacionadas a:
+
+* integridade referencial;
+* transações;
+* bloqueio de registros durante operações críticas;
+* proteção contra overbooking;
+* proteção contra pagamentos acima do saldo;
+* separação entre identificadores internos e externos;
+* preservação de inconsistências encontradas nos XMLs;
+* validação de regras de negócio;
+* padronização de respostas.
+
+---
+
+# Principais funcionalidades
+
+O projeto atualmente possui:
+
+* importação de hotéis, quartos e reservas através de XML;
+* importação idempotente;
+* identificação de inconsistências durante a importação;
+* armazenamento das inconsistências em `import_errors`;
+* relacionamento entre hotéis, quartos, reservas e hóspedes;
+* controle de quantidade de unidades por quarto;
+* criação de reservas através da API;
+* validação de disponibilidade;
+* suporte a reservas consecutivas;
+* cálculo de subtotal;
+* cálculo de descontos;
+* cálculo de taxas;
+* cálculo do total;
+* cupons percentuais;
+* cupons de valor fixo;
+* validade de cupons;
+* controle de cupons ativos/inativos;
+* gerenciamento de pagamentos;
+* cálculo do total pago;
+* cálculo do saldo restante;
+* prevenção de pagamentos acima do saldo;
+* autenticação via Laravel Sanctum;
+* documentação OpenAPI 3;
 * testes automatizados com PHPUnit;
-* respostas padronizadas em JSON.
-
-O projeto foi desenvolvido como **desafio técnico**, com o objetivo de demonstrar organização de código, separação de responsabilidades, tratamento de inconsistências de dados, segurança de endpoints e cobertura de regras de negócio por testes automatizados.
-
----
-
-## Tecnologias
-
-| Tecnologia      | Uso no projeto                                      |
-| --------------- | --------------------------------------------------- |
-| PHP 8.5         | Linguagem da aplicação                              |
-| Laravel 13      | Framework da aplicação e API REST                   |
-| MySQL 8         | Banco de dados relacional                           |
-| Composer        | Gerenciamento de dependências PHP                   |
-| PHPUnit         | Testes automatizados                                |
-| Laravel Sanctum | Autenticação baseada em Bearer Token                |
-| L5-Swagger      | Geração da documentação OpenAPI 3                   |
-| Swagger UI      | Interface para visualização e teste da documentação |
-| Git             | Controle de versão                                  |
+* Docker com PHP-FPM, Nginx e MySQL;
+* respostas JSON;
+* tratamento de erros HTTP;
+* controle de concorrência através de transações e `lockForUpdate()`.
 
 ---
 
-## Requisitos
+# Tecnologias
 
-* PHP 8.5, com as extensões exigidas pelo Laravel, incluindo `pdo_mysql`;
+| Tecnologia      | Utilização                               |
+| --------------- | ---------------------------------------- |
+| PHP 8.5         | Linguagem principal                      |
+| Laravel 13      | Framework da aplicação                   |
+| MySQL 8         | Banco de dados principal                 |
+| SQLite          | Banco utilizado nos testes automatizados |
+| Composer        | Gerenciamento de dependências            |
+| PHPUnit         | Testes automatizados                     |
+| Laravel Sanctum | Autenticação por Bearer Token            |
+| L5-Swagger      | Geração da documentação OpenAPI          |
+| Swagger UI      | Visualização e teste da API              |
+| Docker          | Containerização do ambiente              |
+| Nginx           | Servidor HTTP no ambiente Docker         |
+| Git             | Controle de versão                       |
+
+---
+
+# Arquitetura
+
+A aplicação utiliza uma arquitetura baseada na separação de responsabilidades entre as camadas.
+
+## Controllers
+
+Os Controllers recebem as requisições HTTP e coordenam a execução da operação.
+
+Eles não concentram as principais regras de negócio.
+
+Exemplo:
+
+```text
+ReservationController
+        │
+        ▼
+CreateReservationService
+        │
+        ├── AvailabilityService
+        ├── PricingService
+        └── CouponService
+```
+
+Isso permite que as regras de reserva sejam testadas e reutilizadas sem depender diretamente de uma requisição HTTP.
+
+---
+
+## Form Requests
+
+Os Form Requests são responsáveis pela validação dos dados recebidos pela API.
+
+Exemplos:
+
+* `StoreRoomRequest`
+* `UpdateRoomRequest`
+* `StoreReservationRequest`
+* `StorePaymentRequest`
+
+A validação estrutural fica próxima da entrada da aplicação, enquanto regras específicas de domínio permanecem nos Services.
+
+Por exemplo, o `StoreReservationRequest` verifica se uma diária possui formato válido e se pertence ao período da reserva.
+
+Já a validação de um cupom existente, ativo e dentro do prazo é responsabilidade do `CouponService`.
+
+---
+
+## Services
+
+Os Services concentram regras de negócio.
+
+Entre os principais:
+
+```text
+Services/
+├── Import/
+│   ├── XmlImportService
+│   ├── HotelImportService
+│   ├── RoomImportService
+│   ├── ReservationImportService
+│   └── ImportErrorRecorder
+│
+└── Reservation/
+    ├── CreateReservationService
+    ├── AvailabilityService
+    ├── PricingService
+    ├── CouponService
+    └── PaymentService
+```
+
+Essa divisão evita que Controllers se tornem responsáveis por cálculos, validações de disponibilidade, importação ou operações financeiras.
+
+---
+
+## API Resources
+
+Os Resources controlam a representação dos dados retornados pela API.
+
+Isso permite definir quais campos serão expostos e quais relacionamentos serão incluídos quando necessário.
+
+---
+
+# Pré-requisitos
+
+Para execução local:
+
+* PHP 8.5;
 * Composer;
 * MySQL 8;
 * Git.
 
+Para execução com Docker:
+
+* Docker Desktop;
+* Docker Compose;
+* virtualização habilitada.
+
 ---
 
-## Instalação
+# Execução com Docker
 
-### 1. Clone o repositório
+O projeto possui ambiente Docker composto por:
+
+```text
+┌─────────────────────┐
+│       Nginx         │
+│      porta 8000     │
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────┐
+│     PHP-FPM         │
+│    Laravel 13       │
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────┐
+│      MySQL 8        │
+└─────────────────────┘
+```
+
+Os serviços principais são:
+
+* `app`: PHP-FPM + Laravel;
+* `nginx`: servidor HTTP;
+* `mysql`: banco de dados MySQL 8.
+
+## Subir o ambiente
+
+```bash
+docker compose up -d --build
+```
+
+Verificar os containers:
+
+```bash
+docker compose ps
+```
+
+O MySQL possui healthcheck para garantir que o serviço esteja disponível antes da aplicação depender dele.
+
+## Executar migrations
+
+```bash
+docker compose exec app php artisan migrate
+```
+
+## Importar os XMLs
+
+```bash
+docker compose exec app php artisan hotel:import
+```
+
+## Executar testes
+
+```bash
+docker compose exec app php artisan test
+```
+
+A aplicação fica disponível em:
+
+```text
+http://127.0.0.1:8000
+```
+
+A documentação Swagger fica disponível em:
+
+```text
+http://127.0.0.1:8000/api/documentation
+```
+
+---
+
+# Instalação local
+
+## 1. Clonar o projeto
 
 ```bash
 git clone <url-do-repositorio>
-
-cd <diretorio-do-projeto>
+cd desafio-foco-hotel-api
 ```
 
-### 2. Instale as dependências
+## 2. Instalar dependências
 
 ```bash
 composer install
 ```
 
-### 3. Configure o arquivo de ambiente
+## 3. Criar o `.env`
 
-Copie o arquivo `.env.example` para `.env`:
+Linux/macOS:
 
 ```bash
 cp .env.example .env
 ```
 
-No Windows PowerShell:
+Windows PowerShell:
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-Gere a chave da aplicação:
+Gerar a chave:
 
 ```bash
 php artisan key:generate
 ```
 
-### 4. Configure o banco de dados
-
-Configure a conexão com o MySQL no arquivo `.env`.
+## 4. Configurar o banco
 
 Exemplo:
 
@@ -101,11 +420,9 @@ DB_USERNAME=seu_usuario
 DB_PASSWORD=sua_senha
 ```
 
-### 5. Crie o banco de dados
+A porta `3307` corresponde ao ambiente de desenvolvimento utilizado durante a implementação. Em uma instalação padrão do MySQL, a porta normalmente é `3306`.
 
-Crie o banco com o mesmo nome definido em `DB_DATABASE`.
-
-Exemplo:
+## 5. Criar o banco
 
 ```sql
 CREATE DATABASE foco_hotel
@@ -113,29 +430,33 @@ CHARACTER SET utf8mb4
 COLLATE utf8mb4_unicode_ci;
 ```
 
-### 6. Execute as migrations
+## 6. Executar migrations
 
 ```bash
 php artisan migrate
 ```
 
-As migrations criam as tabelas da aplicação, incluindo as estruturas necessárias para autenticação com Laravel Sanctum, reservas, cupons e pagamentos.
+## 7. Importar os XMLs
 
-### 7. Importe os dados dos XMLs
+Coloque os arquivos no diretório:
 
-Com os arquivos XML no diretório padrão:
+```text
+storage/app/imports/
+```
+
+E execute:
 
 ```bash
 php artisan hotel:import
 ```
 
-### 8. Inicie o servidor local
+## 8. Iniciar a aplicação
 
 ```bash
 php artisan serve
 ```
 
-Por padrão, a aplicação ficará disponível em:
+A aplicação ficará disponível, por padrão, em:
 
 ```text
 http://127.0.0.1:8000
@@ -143,104 +464,89 @@ http://127.0.0.1:8000
 
 ---
 
-## Configuração do ambiente
+# Configuração do ambiente
 
-As principais variáveis do `.env` relacionadas ao banco de dados são:
+As principais variáveis relacionadas ao banco são:
 
-```dotenv
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3307
-DB_DATABASE=foco_hotel
-DB_USERNAME=seu_usuario
-DB_PASSWORD=sua_senha
-```
+| Variável        | Descrição        |
+| --------------- | ---------------- |
+| `DB_CONNECTION` | Driver utilizado |
+| `DB_HOST`       | Host do banco    |
+| `DB_PORT`       | Porta do banco   |
+| `DB_DATABASE`   | Banco utilizado  |
+| `DB_USERNAME`   | Usuário do banco |
+| `DB_PASSWORD`   | Senha do banco   |
 
-| Variável        | Descrição                            |
-| --------------- | ------------------------------------ |
-| `DB_CONNECTION` | Driver de conexão (`mysql`)          |
-| `DB_HOST`       | Host do servidor MySQL               |
-| `DB_PORT`       | Porta do MySQL                       |
-| `DB_DATABASE`   | Nome do banco utilizado pelo projeto |
-| `DB_USERNAME`   | Usuário com acesso ao banco          |
-| `DB_PASSWORD`   | Senha do usuário                     |
+O `.env` não deve ser versionado.
 
-A porta `3307` é a utilizada no ambiente de desenvolvimento deste projeto, mas pode variar conforme a instalação local. A porta padrão do MySQL é `3306`.
-
-Os valores acima são exemplos. O arquivo `.env` contém configurações locais e credenciais e não deve ser versionado.
+O Docker utiliza variáveis específicas para comunicação interna entre containers. Nesse ambiente, o Laravel se comunica com o serviço MySQL através do nome do serviço Docker e da porta interna do MySQL.
 
 ---
 
 # Banco de dados
 
-| Tabela                   | Descrição                                                                         |
-| ------------------------ | --------------------------------------------------------------------------------- |
-| `hotels`                 | Hotéis cadastrados                                                                |
-| `rooms`                  | Quartos de cada hotel, incluindo a quantidade (`quantity`) disponível             |
-| `reservations`           | Reservas, com período, status e valores (`subtotal`, `discount`, `fees`, `total`) |
-| `guests`                 | Hóspedes vinculados a uma reserva                                                 |
-| `reservation_dailies`    | Diárias de uma reserva, contendo data e valor                                     |
-| `payments`               | Pagamentos vinculados às reservas, com forma, valor e data de pagamento           |
-| `coupons`                | Cupons de desconto                                                                |
-| `reservation_coupons`    | Cupons aplicados às reservas e respectivos descontos                              |
-| `import_errors`          | Inconsistências encontradas durante a importação dos XMLs                         |
-| `users`                  | Usuários utilizados pela autenticação da API                                      |
-| `personal_access_tokens` | Tokens gerenciados pelo Laravel Sanctum                                           |
+A modelagem foi criada considerando os dados presentes nos XMLs e as regras adicionais necessárias para o funcionamento da API.
 
-### Identificadores externos (`external_id`)
+| Tabela                   | Responsabilidade                 |
+| ------------------------ | -------------------------------- |
+| `hotels`                 | Hotéis                           |
+| `rooms`                  | Quartos e quantidade de unidades |
+| `reservations`           | Reservas                         |
+| `guests`                 | Hóspedes                         |
+| `reservation_dailies`    | Diárias das reservas             |
+| `payments`               | Pagamentos                       |
+| `coupons`                | Cupons                           |
+| `reservation_coupons`    | Cupons efetivamente aplicados    |
+| `import_errors`          | Inconsistências da importação    |
+| `users`                  | Usuários da API                  |
+| `personal_access_tokens` | Tokens do Laravel Sanctum        |
 
-Os IDs presentes nos arquivos XML são tratados como **identificadores externos** e armazenados na coluna `external_id`.
+## Relacionamentos principais
 
-Eles **não substituem** os IDs internos, que continuam sendo as chaves primárias do banco.
+```text
+Hotel
+ └── hasMany Rooms
+       └── hasMany Reservations
+             ├── hasMany Guests
+             ├── hasMany ReservationDailies
+             ├── hasMany Payments
+             └── belongsToMany Coupons
+```
 
-Os relacionamentos entre as tabelas utilizam os IDs internos. O `external_id` é utilizado principalmente para localizar registros provenientes dos XMLs durante novas importações.
+---
 
-Essa separação permite que a importação seja executada novamente sem depender dos IDs internos do banco.
+# Identificadores externos
+
+Os IDs presentes nos XMLs não são utilizados como chave primária das tabelas.
+
+Eles são armazenados em `external_id`.
+
+Por exemplo, um quarto vindo do XML pode possuir:
+
+```text
+external_id = 1
+```
+
+enquanto seu ID interno no banco pode ser:
+
+```text
+id = 7
+```
+
+Essa separação é importante porque o ID interno pertence ao banco, enquanto o `external_id` pertence ao sistema de origem dos dados.
+
+Os relacionamentos internos utilizam as chaves primárias do banco.
+
+Os `external_id` são utilizados principalmente para:
+
+* localizar registros importados;
+* atualizar registros existentes;
+* impedir duplicações;
+* permitir reexecução da importação.
 
 ---
 
 # Importação dos XMLs
-
-O fluxo de importação é:
-
-```text
-XML
- ↓
-XmlImportService
- ↓
-Serviços específicos de importação
- ↓
-Models / Eloquent
- ↓
-Banco de dados
-```
-
-O comando Artisan inicia o processo. A leitura, validação e persistência dos dados ficam nos serviços de `app/Services/Import`.
-
-A estrutura principal é:
-
-```text
-app/Services/Import/
-
-├── XmlImportService.php
-├── HotelImportService.php
-├── RoomImportService.php
-└── ReservationImportService.php
-```
-
-## Comando
-
-```bash
-php artisan hotel:import
-```
-
-O comando utiliza `storage/app/imports` como diretório padrão dos XMLs.
-
-É possível informar outro diretório utilizando `--path`:
-
-```bash
-php artisan hotel:import --path=/caminho/dos/xmls
-```
 
 Os arquivos esperados são:
 
@@ -250,30 +556,118 @@ rooms.xml
 reserves.xml
 ```
 
-## Idempotência
+O comando responsável é:
 
-A importação utiliza os identificadores externos e operações como `updateOrCreate` para localizar registros já existentes.
+```bash
+php artisan hotel:import
+```
 
-Dessa forma, executar a importação novamente não duplica hotéis, quartos ou reservas.
+O diretório padrão é:
 
-Registros existentes são atualizados e registros novos são criados.
+```text
+storage/app/imports
+```
 
-## Tratamento de inconsistências
+Também é possível informar outro diretório:
 
-Inconsistências nos dados de origem **não são corrigidas silenciosamente**.
+```bash
+php artisan hotel:import --path=/caminho/dos/xmls
+```
 
-Quando uma inconsistência de negócio é identificada, ela é registrada na tabela `import_errors`, preservando os dados originais importados.
+---
 
-### Exemplo
+# Fluxo da importação
 
-A reserva 6 possui:
+A importação é executada em uma ordem que respeita as dependências dos dados:
+
+```text
+Hotels
+   ↓
+Rooms
+   ↓
+Reservations
+```
+
+Isso ocorre porque:
+
+* quartos dependem de hotéis;
+* reservas dependem de hotéis e quartos;
+* hóspedes, diárias e pagamentos dependem de reservas.
+
+O `XmlImportService` coordena esse fluxo.
+
+Cada tipo de entidade possui seu próprio serviço especializado.
+
+---
+
+# Validação dos XMLs
+
+Antes da importação, os arquivos são:
+
+* localizados;
+* verificados quanto à existência;
+* verificados quanto à possibilidade de leitura;
+* processados através do SimpleXML;
+* protegidos contra carregamento de recursos externos;
+* validados quanto à estrutura esperada.
+
+A importação não tenta simplesmente inserir qualquer conteúdo recebido.
+
+Arquivos inválidos provocam falha controlada do processo, enquanto inconsistências de registros válidos podem ser registradas individualmente.
+
+---
+
+# Idempotência
+
+A importação foi desenvolvida para ser executada mais de uma vez sem gerar duplicações.
+
+Isso é realizado principalmente através dos identificadores externos e operações de atualização/criação.
+
+Exemplo conceitual:
+
+```text
+Primeira execução
+XML → registro não existe → CREATE
+
+Segunda execução
+XML → registro já existe → UPDATE
+
+Terceira execução
+XML → registro já existe → UPDATE
+```
+
+Essa característica é importante porque o processo é executado automaticamente pelo Scheduler.
+
+---
+
+# Tratamento de inconsistências
+
+Uma decisão importante do projeto foi **não corrigir silenciosamente dados inconsistentes recebidos da origem**.
+
+Quando uma inconsistência de negócio é identificada:
+
+1. o dado original pode ser preservado;
+2. a inconsistência é registrada;
+3. o processamento dos demais registros continua quando possível.
+
+As inconsistências são armazenadas em:
+
+```text
+import_errors
+```
+
+---
+
+# Exemplo real do XML
+
+A reserva externa `6` possui:
 
 ```text
 Check-in:  2022-10-01
 Check-out: 2022-10-04
 ```
 
-Considerando check-in inclusivo e check-out exclusivo, o período corresponde às noites:
+Como o check-in é inclusivo e o check-out exclusivo, as noites esperadas são:
 
 ```text
 2022-10-01
@@ -281,67 +675,84 @@ Considerando check-in inclusivo e check-out exclusivo, o período corresponde à
 2022-10-03
 ```
 
-Entretanto, o XML possui também uma diária em:
+Entretanto, o XML também contém uma diária em:
 
 ```text
 2022-12-03
 ```
 
-Essa diária está fora do período da reserva.
+Essa data está fora do período da reserva.
 
-O sistema preserva a informação importada e registra a inconsistência em `import_errors` com o tipo:
+O sistema não remove a diária nem altera silenciosamente o XML importado.
+
+A inconsistência é registrada em `import_errors` com:
 
 ```text
-daily_outside_stay_period
+type = daily_outside_stay_period
+```
+
+Isso permite preservar a informação de origem e, ao mesmo tempo, tornar o problema auditável.
+
+Após a importação dos arquivos fornecidos, o banco possui:
+
+```text
+Hotéis:             3
+Quartos:            6
+Reservas:           6
+Hóspedes:           6
+Diárias:            18
+Pagamentos:         1
+Inconsistências:    1
 ```
 
 ---
 
 # Scheduler e CRON
 
-O Laravel Scheduler está configurado em `routes/console.php` para executar a importação uma vez por hora:
+O Laravel Scheduler está configurado para executar a importação uma vez por hora.
 
-```php
-Schedule::command('hotel:import')
-    ->hourly()
-    ->withoutOverlapping();
+A tarefa utiliza:
+
+```text
+hourly()
+withoutOverlapping()
 ```
 
-### `hourly()`
+## `hourly()`
 
-Executa o comando no minuto 0 de cada hora.
+Define a frequência de execução da importação.
 
-### `withoutOverlapping()`
+## `withoutOverlapping()`
 
-Evita que duas execuções da mesma tarefa ocorram simultaneamente.
+Evita que uma segunda execução da mesma tarefa seja iniciada enquanto outra ainda estiver em execução.
 
-## CRON, Scheduler e comando
+Isso é especialmente importante porque a importação modifica dados persistidos.
 
-| Componente        | Papel                                               |
-| ----------------- | --------------------------------------------------- |
-| CRON do sistema   | Executa o Scheduler do Laravel periodicamente       |
-| Laravel Scheduler | Verifica quais tarefas estão no horário de execução |
-| `hotel:import`    | Executa efetivamente a importação dos XMLs          |
+---
 
-Em produção, o CRON deve executar o Scheduler do Laravel a cada minuto:
+# CRON x Scheduler x Artisan
 
-```bash
-php artisan schedule:run
-```
+Os três componentes possuem responsabilidades diferentes:
 
-Exemplo:
+| Componente        | Responsabilidade                          |
+| ----------------- | ----------------------------------------- |
+| CRON              | Aciona o Scheduler periodicamente         |
+| Laravel Scheduler | Decide quais tarefas devem ser executadas |
+| `hotel:import`    | Executa a lógica efetiva de importação    |
+
+Em produção, o sistema operacional pode executar o Scheduler a cada minuto:
 
 ```text
 * * * * * cd /caminho/do/projeto && php artisan schedule:run >> /dev/null 2>&1
 ```
 
-Para listar os agendamentos:
+Para verificar as tarefas:
 
 ```bash
 php artisan schedule:list
 ```
 
-Em desenvolvimento local, também é possível manter o Scheduler executando em primeiro plano:
+Durante desenvolvimento:
 
 ```bash
 php artisan schedule:work
@@ -349,31 +760,46 @@ php artisan schedule:work
 
 ---
 
-# API REST
+# Autenticação
 
-A API utiliza respostas em JSON e possui o prefixo:
+A API utiliza Laravel Sanctum.
+
+O endpoint de login é público:
 
 ```text
-/api
+POST /api/login
 ```
 
-As rotas podem ser verificadas com:
+Após autenticação, o usuário recebe um Bearer Token.
 
-```bash
-php artisan route:list
+As requisições protegidas devem enviar:
+
+```text
+Authorization: Bearer {token}
+Accept: application/json
 ```
 
-A rota de login é pública. As demais rotas relacionadas aos dados protegidos exigem autenticação através de Bearer Token.
+Sem autenticação válida, a API retorna:
+
+```text
+401 Unauthorized
+```
 
 ---
 
-# Autenticação
+# Usuário de teste
 
-A autenticação da API é realizada utilizando **Laravel Sanctum**.
+Para facilitar a avaliação do projeto, existe um usuário de teste:
 
-## Login
+| Campo  | Valor            |
+| ------ | ---------------- |
+| Nome   | Usuário Teste    |
+| E-mail | `teste@foco.com` |
+| Senha  | `12345678`       |
 
-```http
+Login:
+
+```text
 POST /api/login
 ```
 
@@ -386,31 +812,15 @@ Exemplo:
 }
 ```
 
-Em caso de sucesso, a API retorna um token:
+A senha acima é destinada exclusivamente ao usuário de teste do projeto.
 
-```json
-{
-    "message": "Login realizado com sucesso.",
-    "token": "...",
-    "token_type": "Bearer",
-    "user": {
-        "id": 1,
-        "name": "Teste",
-        "email": "teste@foco.com"
-    }
-}
-```
+Em um ambiente real, as credenciais deveriam ser substituídas e nunca utilizadas como credenciais de produção.
 
-O token deve ser enviado nas requisições protegidas:
+---
 
-```http
-Authorization: Bearer {token}
-Accept: application/json
-```
+# Rotas protegidas
 
-## Rotas protegidas
-
-As seguintes rotas exigem autenticação:
+As operações abaixo exigem autenticação:
 
 ```text
 GET    /api/user
@@ -430,166 +840,182 @@ GET    /api/reservations/{reservation}/payments/{payment}
 DELETE /api/reservations/{reservation}/payments/{payment}
 ```
 
-Sem um token válido, a API retorna:
-
-```http
-401 Unauthorized
-```
-
-com resposta JSON semelhante a:
-
-```json
-{
-    "message": "Unauthenticated."
-}
-```
-
-### Segurança
-
-A autenticação é aplicada na API através do middleware:
-
-```text
-auth:sanctum
-```
-
-As regras de negócio e os dados continuam sendo protegidos no backend, independentemente da interface que consuma a API.
-
 ---
 
-# Swagger / OpenAPI
+# API REST
 
-A API possui documentação utilizando **OpenAPI 3**, gerada pelo pacote L5-Swagger.
-
-Após iniciar o servidor, a documentação pode ser acessada em:
+A API utiliza o prefixo:
 
 ```text
-http://127.0.0.1:8000/api/documentation
+/api
 ```
 
-Para regenerar a documentação:
+As rotas seguem os verbos HTTP adequados para suas respectivas operações.
+
+As respostas são retornadas em JSON.
+
+As rotas disponíveis podem ser verificadas através de:
 
 ```bash
-php artisan l5-swagger:generate
+php artisan route:list
 ```
-
-A documentação contempla os principais endpoints da API, incluindo:
-
-* autenticação;
-* quartos;
-* reservas;
-* pagamentos;
-* parâmetros;
-* respostas;
-* requisitos de autenticação.
-
-O Swagger também pode ser utilizado para testar os endpoints protegidos informando o Bearer Token.
 
 ---
 
 # API de quartos
 
-A API de quartos utiliza `apiResource` e segue os verbos HTTP REST.
+A API de quartos utiliza os métodos REST tradicionais.
 
-| Método   | Endpoint            | Finalidade          |
-| -------- | ------------------- | ------------------- |
-| `GET`    | `/api/rooms`        | Listar quartos      |
-| `POST`   | `/api/rooms`        | Criar quarto        |
-| `GET`    | `/api/rooms/{room}` | Exibir um quarto    |
-| `PUT`    | `/api/rooms/{room}` | Atualizar um quarto |
-| `PATCH`  | `/api/rooms/{room}` | Atualizar um quarto |
-| `DELETE` | `/api/rooms/{room}` | Remover um quarto   |
+| Método   | Endpoint            | Finalidade       |
+| -------- | ------------------- | ---------------- |
+| `GET`    | `/api/rooms`        | Listar quartos   |
+| `POST`   | `/api/rooms`        | Criar quarto     |
+| `GET`    | `/api/rooms/{room}` | Consultar quarto |
+| `PUT`    | `/api/rooms/{room}` | Atualizar quarto |
+| `PATCH`  | `/api/rooms/{room}` | Atualizar quarto |
+| `DELETE` | `/api/rooms/{room}` | Remover quarto   |
 
-A listagem utiliza paginação do Laravel.
+A listagem utiliza paginação.
 
-Os parâmetros de criação e atualização são validados através dos Form Requests correspondentes.
-
-### Campos do quarto
+## Campos
 
 | Campo         | Descrição                          |
 | ------------- | ---------------------------------- |
 | `hotel_id`    | ID interno do hotel                |
-| `external_id` | Identificador externo do quarto    |
+| `external_id` | ID externo do quarto               |
 | `name`        | Nome do quarto                     |
 | `quantity`    | Quantidade de unidades disponíveis |
 
-A combinação de `hotel_id` e `external_id` deve ser única.
+A combinação:
 
-### Observação sobre PUT e PATCH
+```text
+hotel_id + external_id
+```
 
-O endpoint `PATCH` está disponível para seguir a interface REST da API, porém atualmente utiliza o mesmo `UpdateRoomRequest` do `PUT`.
+deve ser única.
 
-Portanto, **a implementação atual não trata PATCH como atualização parcialmente opcional**. Os campos definidos como obrigatórios na validação continuam sendo exigidos.
+## PUT e PATCH
+
+O endpoint PATCH está disponível para manter a interface REST da API, porém a implementação atual utiliza o mesmo Form Request do PUT.
+
+Consequentemente, os campos considerados obrigatórios pelo `UpdateRoomRequest` continuam sendo exigidos no PATCH.
+
+Isso é uma limitação conhecida e intencional da implementação atual.
 
 ---
 
 # API de reservas
 
-## Criar reserva
+O endpoint para criação de reservas é:
 
-```http
+```text
 POST /api/reservations
 ```
 
-Campos aceitos no corpo da requisição:
-
-| Campo              | Obrigatório | Regras                                                          |
-| ------------------ | ----------- | --------------------------------------------------------------- |
-| `hotel_id`         | Sim         | Inteiro; deve existir em `hotels`                               |
-| `room_id`          | Sim         | Inteiro; deve existir em `rooms` e pertencer ao hotel informado |
-| `check_in`         | Sim         | Data no formato `Y-m-d`                                         |
-| `check_out`        | Sim         | Data no formato `Y-m-d`, posterior a `check_in`                 |
-| `guests`           | Sim         | Array com ao menos um hóspede                                   |
-| `guests.*.name`    | Sim         | Nome com até 255 caracteres                                     |
-| `guests.*.phone`   | Não         | Telefone com até 30 caracteres                                  |
-| `dailies`          | Sim         | Array de diárias                                                |
-| `dailies.*.date`   | Sim         | Data no formato `Y-m-d`                                         |
-| `dailies.*.amount` | Sim         | Valor numérico não negativo                                     |
-| `coupon_code`      | Não         | Código do cupom, com até 50 caracteres                          |
-
-As diárias devem corresponder exatamente às noites da reserva, considerando:
+A criação passa pelas seguintes etapas conceituais:
 
 ```text
-check-in inclusivo
-check-out exclusivo
+Request
+ ↓
+Validação estrutural
+ ↓
+Localização do quarto
+ ↓
+Validação hotel/quarto
+ ↓
+Bloqueio do quarto
+ ↓
+Verificação de disponibilidade
+ ↓
+Cálculo do subtotal
+ ↓
+Aplicação do cupom
+ ↓
+Cálculo do total
+ ↓
+Criação da reserva
+ ↓
+Criação dos hóspedes
+ ↓
+Criação das diárias
+ ↓
+Registro do cupom aplicado
 ```
 
-Não são permitidas datas duplicadas.
+Todo esse fluxo ocorre dentro de uma transação.
 
-### Exemplo
+---
 
-```json
-{
-    "hotel_id": 1,
-    "room_id": 1,
-    "check_in": "2026-11-10",
-    "check_out": "2026-11-13",
-    "guests": [
-        {
-            "name": "Maria Silva",
-            "phone": "5571999999999"
-        }
-    ],
-    "dailies": [
-        {
-            "date": "2026-11-10",
-            "amount": "200.00"
-        },
-        {
-            "date": "2026-11-11",
-            "amount": "200.00"
-        },
-        {
-            "date": "2026-11-12",
-            "amount": "200.00"
-        }
-    ],
-    "coupon_code": "PROMO"
-}
+# Dados da reserva
+
+| Campo         | Obrigatório | Descrição        |
+| ------------- | ----------- | ---------------- |
+| `hotel_id`    | Sim         | Hotel da reserva |
+| `room_id`     | Sim         | Quarto reservado |
+| `check_in`    | Sim         | Data de entrada  |
+| `check_out`   | Sim         | Data de saída    |
+| `guests`      | Sim         | Hóspedes         |
+| `dailies`     | Sim         | Diárias          |
+| `coupon_code` | Não         | Cupom utilizado  |
+
+---
+
+# Regras das diárias
+
+As diárias devem:
+
+* possuir datas únicas;
+* utilizar o formato `Y-m-d`;
+* estar dentro do período da reserva;
+* não possuir data anterior ao check-in;
+* não possuir data igual ou posterior ao check-out;
+* possuir quantidade equivalente ao número de noites.
+
+Exemplo:
+
+```text
+Check-in:  10/11
+Check-out: 13/11
 ```
 
-### Valores financeiros
+As noites são:
 
-Os valores:
+```text
+10/11
+11/11
+12/11
+```
+
+Portanto, são necessárias três diárias.
+
+A data de check-out não representa uma noite.
+
+---
+
+# Regra hotel x quarto
+
+O `room_id` não é aceito apenas porque existe.
+
+O quarto também precisa pertencer ao `hotel_id` informado.
+
+Por exemplo:
+
+```text
+hotel_id = 1
+room_id  = quarto pertencente ao hotel 2
+```
+
+Essa combinação é rejeitada.
+
+Essa verificação é realizada no Service, além da validação estrutural feita pelo Form Request.
+
+---
+
+# Valores financeiros
+
+A API não confia em valores financeiros enviados pelo cliente.
+
+Campos como:
 
 ```text
 subtotal
@@ -598,43 +1024,63 @@ fees
 total
 ```
 
-**não são recebidos como fonte de verdade do cliente**.
+são calculados pelo backend.
 
-O backend calcula esses valores com base nas diárias, cupom e regras de negócio.
+Portanto, mesmo que o consumidor tente enviar um valor diferente, ele não consegue determinar o total da reserva.
 
-Isso evita que um cliente da API envie, por exemplo:
+A fonte de verdade financeira é o servidor.
 
-```json
-{
-    "total": "1.00"
-}
+---
+
+# Regra de cálculo
+
+O subtotal corresponde à soma das diárias:
+
+```text
+subtotal = soma das diárias
 ```
 
-e consiga alterar o valor real da reserva.
+O desconto é determinado pelo cupom, quando existente.
 
-### Respostas
+As taxas atualmente começam em zero.
 
-| Código | Situação                                         |
-| ------ | ------------------------------------------------ |
-| `201`  | Reserva criada com sucesso                       |
-| `401`  | Usuário não autenticado                          |
-| `422`  | Dados inválidos ou regra de negócio não atendida |
+O total segue:
 
-Quando o quarto não possui disponibilidade para o período informado, a API retorna:
-
-```http
-409 Conflict
+```text
+total = subtotal - discount + fees
 ```
+
+---
+
+# Valores monetários
+
+Os cálculos financeiros são realizados utilizando centavos inteiros.
+
+Conceitualmente:
+
+```text
+R$ 100,50
+↓
+10.050 centavos
+```
+
+Isso evita depender diretamente de operações com ponto flutuante para as comparações financeiras.
+
+O arredondamento utilizado nos cálculos monetários é `half-up`.
 
 ---
 
 # API de pagamentos
 
-O sistema permite registrar e gerenciar pagamentos vinculados às reservas.
+O projeto possui gerenciamento interno de pagamentos associados às reservas.
 
-O gerenciamento atual é feito no próprio sistema e **não representa uma integração com gateway de pagamento**.
+Importante: esse módulo **não representa uma integração com gateway ou adquirente de pagamentos**.
 
-## Endpoints
+Ele controla os registros financeiros da aplicação.
+
+---
+
+# Endpoints de pagamentos
 
 | Método   | Endpoint                                             | Finalidade          |
 | -------- | ---------------------------------------------------- | ------------------- |
@@ -643,21 +1089,25 @@ O gerenciamento atual é feito no próprio sistema e **não representa uma integ
 | `GET`    | `/api/reservations/{reservation}/payments/{payment}` | Consultar pagamento |
 | `DELETE` | `/api/reservations/{reservation}/payments/{payment}` | Excluir pagamento   |
 
-Todos os endpoints exigem autenticação através do Laravel Sanctum.
+Todos exigem autenticação.
 
-## Registrar pagamento
+---
 
-```http
+# Registrar pagamento
+
+Endpoint:
+
+```text
 POST /api/reservations/{reservation}/payments
 ```
 
 Campos:
 
-| Campo     | Obrigatório | Regras                                         |
-| --------- | ----------- | ---------------------------------------------- |
-| `method`  | Sim         | String com até 50 caracteres                   |
-| `amount`  | Sim         | Valor maior que zero, com até 2 casas decimais |
-| `paid_at` | Não         | Data válida                                    |
+| Campo     | Obrigatório | Descrição              |
+| --------- | ----------- | ---------------------- |
+| `method`  | Sim         | Forma de pagamento     |
+| `amount`  | Sim         | Valor do pagamento     |
+| `paid_at` | Não         | Data/hora do pagamento |
 
 Exemplo:
 
@@ -669,235 +1119,56 @@ Exemplo:
 }
 ```
 
-Em caso de sucesso:
+---
 
-```http
-201 Created
+# Controle de saldo
+
+O sistema mantém a diferença entre:
+
+```text
+total da reserva
+-
+total pago
+=
+saldo restante
 ```
-
-A resposta contém:
-
-```json
-{
-    "message": "Pagamento registrado com sucesso.",
-    "payment": {
-        "id": 1,
-        "reservation_id": 1,
-        "method": "credit_card",
-        "amount": "100.00",
-        "paid_at": "2026-11-10T10:00:00.000000Z",
-        "created_at": "2026-11-10T10:00:00.000000Z"
-    },
-    "total_paid": "100.00",
-    "remaining_balance": "200.00"
-}
-```
-
-## Listar pagamentos
-
-```http
-GET /api/reservations/{reservation}/payments
-```
-
-A resposta apresenta:
-
-* pagamentos registrados;
-* total já pago;
-* saldo restante.
-
-Exemplo:
-
-```json
-{
-    "payments": [
-        {
-            "id": 1,
-            "reservation_id": 1,
-            "method": "credit_card",
-            "amount": "100.00",
-            "paid_at": "2026-11-10T10:00:00.000000Z",
-            "created_at": "2026-11-10T10:00:00.000000Z"
-        }
-    ],
-    "total_paid": "100.00",
-    "remaining_balance": "200.00"
-}
-```
-
-## Consultar pagamento
-
-```http
-GET /api/reservations/{reservation}/payments/{payment}
-```
-
-O pagamento precisa pertencer à reserva informada.
-
-Caso contrário, a API retorna:
-
-```http
-404 Not Found
-```
-
-```json
-{
-    "message": "Pagamento não encontrado."
-}
-```
-
-## Excluir pagamento
-
-```http
-DELETE /api/reservations/{reservation}/payments/{payment}
-```
-
-Quando o pagamento pertence à reserva, a API retorna:
-
-```http
-204 No Content
-```
-
-Caso o pagamento não pertença à reserva informada:
-
-```http
-404 Not Found
-```
-
-## Regra de saldo
-
-O total pago nunca pode ultrapassar o total da reserva.
 
 Exemplo:
 
 ```text
-Total da reserva: 300.00
-Pagamento 1:      100.00
-Pagamento 2:      150.00
-Saldo restante:    50.00
+Total da reserva:  R$ 300,00
+Pagamento 1:       R$ 100,00
+Pagamento 2:       R$ 150,00
+Saldo restante:     R$  50,00
 ```
 
-Um novo pagamento de `50.00` é permitido.
+Nesse cenário, um pagamento de R$ 50,00 é permitido.
 
-Um novo pagamento de `100.00` é rejeitado:
+Um pagamento de R$ 100,00 é rejeitado.
 
-```http
-422 Unprocessable Entity
-```
+A regra não está apenas no Controller ou no Form Request.
 
-Exemplo:
-
-```json
-{
-    "message": "O pagamento de 100.00 excede o saldo restante da reserva (50.00)."
-}
-```
-
-A regra é aplicada no `PaymentService`, e não apenas na validação HTTP.
-
-Isso garante que a regra financeira também seja respeitada caso o serviço seja utilizado por outro fluxo da aplicação.
-
-## Concorrência
-
-O registro do pagamento utiliza uma transação e `lockForUpdate()` na reserva.
-
-Isso reduz o risco de duas operações concorrentes utilizarem simultaneamente o mesmo saldo restante e registrarem pagamentos que ultrapassem o total da reserva.
-
-Os valores utilizados nas comparações financeiras são convertidos para centavos inteiros.
+Ela está no `PaymentService`, garantindo que a regra financeira seja respeitada independentemente de qual fluxo utilize o serviço.
 
 ---
 
-# Regras de negócio
+# Concorrência nos pagamentos
 
-## Disponibilidade
+O registro de pagamento utiliza:
 
-Uma reserva existente entra em conflito com uma nova reserva quando:
+* transação;
+* bloqueio da reserva;
+* cálculo do saldo dentro da operação protegida.
 
-```text
-novo_check_in < reserva_existente_check_out
+A reserva é bloqueada com `lockForUpdate()` antes da validação do saldo.
 
-E
-
-novo_check_out > reserva_existente_check_in
-```
-
-O check-in é inclusivo e o check-out é exclusivo.
-
-Assim, uma reserva que termina no mesmo dia em que outra começa não gera conflito.
-
-Atualmente, apenas reservas com status:
-
-```text
-confirmed
-```
-
-são consideradas ocupantes.
-
-A disponibilidade também considera `quantity`.
-
-Por exemplo:
-
-```text
-quantity = 3
-
-reservas conflitantes = 2
-
-disponibilidade = 1
-```
-
-O sistema permite novas reservas enquanto a quantidade de reservas conflitantes for menor que a quantidade disponível.
-
-Durante a criação da reserva, o registro do quarto é bloqueado com `lockForUpdate()` dentro de uma transação para reduzir o risco de overbooking em requisições concorrentes.
+Isso reduz o risco de duas requisições simultâneas consumirem o mesmo saldo restante e ultrapassarem o valor total da reserva.
 
 ---
 
-## Cálculo financeiro
+# Cupons e promoções
 
-### Subtotal
-
-O subtotal é a soma dos valores das diárias:
-
-```text
-subtotal = soma(dailies.amount)
-```
-
-### Desconto
-
-O desconto é calculado pelo `CouponService`.
-
-Sem cupom:
-
-```text
-discount = 0.00
-```
-
-### Taxas
-
-O campo `fees` existe para suportar taxas, juros ou serviços adicionais.
-
-Atualmente:
-
-```text
-fees = 0.00
-```
-
-As regras específicas de taxas e juros ainda não estão implementadas.
-
-### Total
-
-```text
-total = subtotal - discount + fees
-```
-
-Todos os valores são calculados no backend.
-
-Durante os cálculos monetários, os valores são convertidos para centavos inteiros, evitando problemas de precisão associados à aritmética de ponto flutuante.
-
-Quando uma terceira casa decimal está presente, o arredondamento utilizado é **half-up**.
-
----
-
-# Cupons
-
-O sistema suporta dois tipos:
+O sistema possui suporte a dois tipos de cupom:
 
 ```text
 percentage
@@ -906,17 +1177,13 @@ fixed
 
 ## Percentual
 
-Representa um percentual aplicado sobre o subtotal.
+Aplica uma porcentagem sobre o subtotal.
 
-O intervalo permitido é de:
+O valor máximo permitido é 100%.
 
-```text
-0% a 100%
-```
+## Fixo
 
-## Valor fixo
-
-Representa um desconto fixo em reais.
+Aplica um valor absoluto de desconto.
 
 ## Validade
 
@@ -927,9 +1194,9 @@ starts_at
 expires_at
 ```
 
-Ambos são opcionais.
+Esses limites são opcionais.
 
-Quando informados, os limites são inclusivos.
+Quando definidos, são considerados na validação do cupom.
 
 ## Status
 
@@ -939,145 +1206,348 @@ Cupons com:
 active = false
 ```
 
-são rejeitados.
+não podem ser utilizados.
 
 ## Limite do desconto
 
-O desconto nunca pode ultrapassar o subtotal.
+O desconto nunca ultrapassa o subtotal.
 
-Portanto:
+Por exemplo:
 
 ```text
-total >= 0
+Subtotal: R$ 100,00
+Cupom:    R$ 150,00
+Desconto: R$ 100,00
 ```
 
-## Registro
+O total nunca fica negativo.
 
-Quando um cupom é aplicado, o sistema registra:
+## Persistência
 
-* o cupom utilizado;
-* a reserva;
-* o desconto efetivamente aplicado.
+Quando um cupom é utilizado, o sistema registra:
 
-Essas informações ficam em:
+* reserva;
+* cupom;
+* desconto efetivamente aplicado.
+
+Isso é armazenado em:
 
 ```text
 reservation_coupons
 ```
 
-O desconto também é persistido em:
+O valor também é armazenado em:
 
 ```text
 reservations.discount
 ```
 
-## Falhas
+---
 
-Cupom inexistente, inativo, ainda não iniciado, expirado ou inválido interrompe a criação da reserva.
+# Regras de disponibilidade
 
-Como a criação ocorre dentro de uma transação, a operação é revertida.
+A disponibilidade considera o período da reserva e a quantidade de unidades disponíveis.
 
-O projeto não implementa atualmente limite de quantidade de utilizações por cupom ou outras restrições além das descritas acima.
+A regra de conflito utiliza intervalo semiaberto:
+
+```text
+novo_check_in < reserva_existente_check_out
+
+E
+
+novo_check_out > reserva_existente_check_in
+```
+
+Isso significa:
+
+```text
+check-in = inclusivo
+check-out = exclusivo
+```
+
+Portanto:
+
+```text
+Reserva A
+10/01 → 13/01
+
+Reserva B
+13/01 → 16/01
+```
+
+não possuem conflito.
+
+Essa regra permite que um quarto seja liberado no dia do check-out para uma nova hospedagem.
+
+---
+
+# Quantidade de unidades
+
+Um quarto representa uma categoria/tipo de acomodação e possui um campo `quantity`.
+
+Exemplo:
+
+```text
+Quarto Standard
+quantity = 3
+```
+
+Se existirem duas reservas conflitantes:
+
+```text
+quantity = 3
+reservas conflitantes = 2
+disponibilidade = 1
+```
+
+Uma nova reserva ainda é permitida.
+
+Quando a quantidade disponível chega a zero, novas reservas para o período são rejeitadas com:
+
+```text
+409 Conflict
+```
+
+Atualmente, cada reserva ocupa uma unidade da quantidade disponível.
+
+---
+
+# Controle de concorrência nas reservas
+
+A criação da reserva ocorre dentro de uma transação.
+
+O quarto é bloqueado durante a operação através de `lockForUpdate()`.
+
+O objetivo é reduzir o risco de overbooking em requisições concorrentes.
+
+O fluxo é:
+
+```text
+BEGIN TRANSACTION
+       ↓
+LOCK ROOM
+       ↓
+CHECK AVAILABILITY
+       ↓
+CALCULATE PRICE
+       ↓
+CREATE RESERVATION
+       ↓
+CREATE GUESTS
+       ↓
+CREATE DAILIES
+       ↓
+COMMIT
+```
+
+Caso uma etapa falhe, a transação é revertida.
+
+---
+
+# Datas e compatibilidade entre bancos
+
+Durante o desenvolvimento foi identificado um detalhe importante relacionado ao uso do SQLite nos testes.
+
+Embora a coluna da migration seja definida como `date`, o SQLite possui diferenças na forma como representa determinados valores em relação ao MySQL.
+
+O Model `Reservation` utiliza um cast próprio chamado `DateOnly` para garantir que `check_in` e `check_out` sejam persistidos somente como:
+
+```text
+Y-m-d
+```
+
+Na leitura, o valor continua disponível como um objeto de data compatível com Carbon.
+
+Essa decisão garante que a representação utilizada pelos testes e pelo MySQL seja consistente.
+
+O problema foi particularmente importante para a regra de check-out exclusivo, pois comparações textuais no SQLite poderiam considerar:
+
+```text
+2027-01-13 00:00:00
+```
+
+diferente de:
+
+```text
+2027-01-13
+```
+
+O cast resolve a diferença na camada de persistência, sem alterar a regra de negócio de disponibilidade.
 
 ---
 
 # Transações
 
-A criação de uma reserva é executada dentro de uma transação de banco de dados.
+A criação de uma reserva é atômica.
 
-A operação envolve:
+Ela envolve:
 
 ```text
-Reserva
- ↓
-Hóspedes
- ↓
-Diárias
- ↓
-Cupom aplicado
+Reservation
+Guest
+ReservationDaily
+ReservationCoupon
 ```
 
-Caso alguma etapa falhe, a transação é revertida e os registros não são persistidos parcialmente.
+Se uma dessas operações falhar, a transação é revertida.
 
-O registro de pagamentos também utiliza transação, garantindo que o pagamento seja criado somente após a validação do saldo disponível.
+Isso evita situações como:
+
+```text
+Reserva criada
+Hóspede criado
+Diária criada
+Cupom falhou
+```
+
+com dados parcialmente persistidos.
+
+O mesmo princípio é aplicado ao registro de pagamentos.
 
 ---
 
 # Tratamento de erros
 
-A API utiliza códigos HTTP apropriados para representar diferentes situações.
+A API utiliza códigos HTTP de acordo com a situação.
 
-| Código | Significado                                      |
+| Código | Utilização                                       |
 | ------ | ------------------------------------------------ |
-| `200`  | Requisição processada com sucesso                |
+| `200`  | Operação realizada com sucesso                   |
 | `201`  | Recurso criado                                   |
-| `204`  | Operação realizada sem conteúdo de resposta      |
-| `401`  | Não autenticado                                  |
+| `204`  | Operação concluída sem conteúdo                  |
+| `401`  | Usuário não autenticado                          |
 | `404`  | Recurso não encontrado                           |
-| `409`  | Conflito, como quarto indisponível               |
+| `409`  | Conflito, como indisponibilidade                 |
 | `422`  | Dados inválidos ou regra de negócio não atendida |
 
-Erros de validação utilizam o formato JSON padrão do Laravel, contendo uma mensagem e, quando aplicável, erros associados aos campos.
+As respostas são disponibilizadas em JSON.
 
 ---
 
-# Testes
+# Swagger / OpenAPI
 
-O projeto possui testes automatizados com PHPUnit.
+A API possui documentação OpenAPI 3 utilizando L5-Swagger.
+
+Após iniciar a aplicação:
+
+```text
+http://127.0.0.1:8000/api/documentation
+```
+
+Para regenerar:
+
+```bash
+php artisan l5-swagger:generate
+```
+
+A documentação inclui os principais endpoints de:
+
+* autenticação;
+* quartos;
+* reservas;
+* pagamentos.
+
+Também apresenta:
+
+* parâmetros;
+* payloads;
+* respostas;
+* códigos HTTP;
+* autenticação;
+* schemas.
+
+O Swagger UI pode ser utilizado para testar endpoints protegidos após informar o Bearer Token.
+
+---
+
+# Testes automatizados
+
+O projeto utiliza PHPUnit através da estrutura de testes do Laravel.
 
 A suíte atual possui:
 
 ```text
-55 testes
-203 assertions
+63 testes
+226 assertions
+0 falhas
 ```
+
+Última validação realizada:
+
+```text
+63 passed (226 assertions)
+```
+
+---
+
+# Cobertura dos testes
 
 Os testes cobrem principalmente:
 
-* autenticação;
-* criação e validação de reservas;
-* disponibilidade;
-* quantidade de quartos;
+### Autenticação
+
+* login válido;
+* senha inválida;
+* endpoint protegido sem autenticação;
+* acesso autenticado.
+
+### Reservas
+
+* criação de reserva;
 * cálculo financeiro;
-* cupons;
-* pagamentos;
-* validações da API;
-* endpoints de quartos;
-* integração de cupons com reservas;
-* regras de negócio da API;
-* segurança dos endpoints.
+* persistência;
+* hotel e quarto incompatíveis;
+* quarto já reservado;
+* quarto inexistente;
+* hotel inexistente;
+* datas inválidas;
+* check-in igual ao check-out;
+* check-out anterior ao check-in;
+* diárias ausentes;
+* diárias duplicadas;
+* diária no check-out;
+* reservas consecutivas;
+* múltiplas reservas conforme `quantity`;
+* bloqueio quando a quantidade é excedida.
 
-## Testes de pagamentos
+### Cupons
 
-Os testes de pagamentos cobrem:
+* cupom inexistente;
+* cupom inativo;
+* cupom ainda não iniciado;
+* cupom expirado;
+* desconto percentual;
+* desconto fixo;
+* arredondamento;
+* limite do desconto;
+* persistência do cupom aplicado;
+* garantia de que valores financeiros enviados pelo cliente sejam ignorados.
 
-* autenticação dos endpoints;
-* registro de pagamento;
-* cálculo do total pago;
-* cálculo do saldo restante;
-* pagamento com valor zero;
-* pagamento com valor negativo;
+### Pagamentos
+
+* criação;
+* autenticação;
+* saldo;
+* total pago;
+* pagamentos sucessivos;
+* pagamento exato do saldo;
+* valor zero;
+* valor negativo;
 * pagamento acima do saldo;
-* múltiplos pagamentos;
-* pagamento até atingir exatamente o total;
-* consulta de pagamento;
 * tentativa de acessar pagamento de outra reserva;
-* exclusão de pagamento;
+* exclusão;
 * garantia de que pagamentos inválidos não sejam persistidos.
 
-Para executar a suíte:
-
-```bash
-php artisan test
-```
+Os testes também ajudaram a identificar e corrigir a diferença de persistência de datas entre SQLite e MySQL.
 
 ---
 
 # Estrutura do projeto
 
+A estrutura principal segue:
+
 ```text
 app/
-
 ├── Console/
 │   └── Commands/
 │       └── ImportHotelDataCommand.php
@@ -1097,73 +1567,100 @@ app/
 │   │   ├── XmlImportService.php
 │   │   ├── HotelImportService.php
 │   │   ├── RoomImportService.php
-│   │   └── ReservationImportService.php
+│   │   ├── ReservationImportService.php
+│   │   └── ImportErrorRecorder.php
 │   │
-│   ├── Reservation/
-│   │   ├── AvailabilityService.php
-│   │   ├── PricingService.php
-│   │   ├── CouponService.php
-│   │   ├── CreateReservationService.php
-│   │   ├── PaymentService.php
-│   │   ├── CouponNotFoundException.php
-│   │   ├── InvalidCouponException.php
-│   │   ├── AppliedCoupon.php
-│   │   └── PaymentExceedsReservationTotalException.php
-│   │
-│   └── Room/
+│   └── Reservation/
+│       ├── CreateReservationService.php
+│       ├── AvailabilityService.php
+│       ├── PricingService.php
+│       ├── CouponService.php
+│       ├── PaymentService.php
+│       └── Exceptions / Value Objects
 │
 └── OpenApi.php
 ```
 
-| Camada                 | Responsabilidade                                                  |
-| ---------------------- | ----------------------------------------------------------------- |
-| `Console/Commands`     | Comandos Artisan, como `hotel:import`                             |
-| `Http/Controllers`     | Recebem requisições e coordenam a aplicação                       |
-| `Http/Requests`        | Validação da estrutura dos dados de entrada                       |
-| `Http/Resources`       | Padronização das respostas JSON                                   |
-| `Models`               | Entidades Eloquent e relacionamentos                              |
-| `Services/Import`      | Leitura, validação e persistência dos XMLs                        |
-| `Services/Reservation` | Disponibilidade, preços, cupons, criação de reservas e pagamentos |
-| `Services/Room`        | Regras relacionadas a quartos                                     |
-| `OpenApi.php`          | Configuração principal da documentação OpenAPI                    |
+---
+
+# Responsabilidades das principais camadas
+
+| Camada               | Responsabilidade                   |
+| -------------------- | ---------------------------------- |
+| Controllers          | Coordenação das requisições HTTP   |
+| Form Requests        | Validação da entrada               |
+| Resources            | Representação JSON                 |
+| Models               | Entidades e relacionamentos        |
+| Import Services      | Processamento dos XMLs             |
+| Reservation Services | Regras de reservas                 |
+| PaymentService       | Regras financeiras de pagamentos   |
+| Scheduler            | Agendamento da importação          |
+| Commands             | Execução de processos via terminal |
+| OpenAPI              | Documentação da API                |
 
 ---
 
-# Decisões técnicas
+# Principais decisões técnicas
 
-### Services para regras de negócio
+## Services para regras de negócio
 
-As regras de negócio foram separadas dos Controllers em Services específicos.
+As principais regras não ficam diretamente nos Controllers.
 
-Isso mantém os Controllers menores e facilita testes e reutilização.
+Isso facilita:
 
-### Form Requests
+* testes;
+* reutilização;
+* manutenção;
+* evolução.
 
-Os Form Requests são responsáveis pela validação estrutural dos dados recebidos.
+---
 
-Por exemplo, o `StoreReservationRequest` verifica a estrutura e os formatos dos dados da reserva, enquanto a validade do cupom é responsabilidade do `CouponService`.
+## Form Requests
 
-### API Resources
+Os Form Requests validam a entrada da aplicação.
 
-Os API Resources padronizam as respostas JSON retornadas pela API.
+Isso impede que Controllers sejam responsáveis por uma grande quantidade de regras de validação estrutural.
 
-### Transactions
+---
 
-A criação de reservas utiliza transações para garantir que reserva, hóspedes, diárias e cupom aplicado sejam persistidos de forma atômica.
+## API Resources
 
-O registro de pagamentos também utiliza transações para preservar a integridade financeira da operação.
+Os Resources controlam a representação pública dos dados.
 
-### Controle de concorrência
+Isso evita retornar diretamente qualquer informação existente nos Models.
 
-O quarto utilizado na criação da reserva é bloqueado com `lockForUpdate()` dentro da transação, reduzindo o risco de duas requisições concorrentes ultrapassarem a quantidade disponível.
+---
 
-O registro de pagamentos também utiliza `lockForUpdate()` na reserva antes de verificar o saldo restante.
+## Transações
 
-### Cálculo financeiro no backend
+Operações que precisam ser atômicas utilizam transações.
 
-Os valores financeiros não são confiados ao cliente.
+Isso é aplicado principalmente em:
 
-O backend calcula:
+* criação de reservas;
+* aplicação de cupons;
+* registro de pagamentos.
+
+---
+
+## Controle de concorrência
+
+Operações críticas utilizam `lockForUpdate()`.
+
+Isso foi aplicado principalmente em:
+
+* criação de reservas;
+* registro de pagamentos.
+
+O objetivo é proteger operações que dependem do estado atual do banco.
+
+---
+
+## Cálculo financeiro no backend
+
+O cliente fornece os dados necessários para o cálculo, mas não controla o resultado financeiro.
+
+O backend determina:
 
 ```text
 subtotal
@@ -1172,71 +1669,102 @@ fees
 total
 ```
 
-a partir dos dados válidos recebidos e das regras de negócio.
+Isso impede manipulação de valores através da API.
 
-### Valores monetários em centavos
+---
 
-Os cálculos financeiros utilizam centavos inteiros para evitar problemas de precisão de ponto flutuante.
+## Valores monetários em centavos
 
-Essa abordagem também é utilizada no controle de pagamentos.
+Os cálculos financeiros utilizam inteiros representando centavos.
 
-### IDs externos separados dos internos
+Essa estratégia reduz problemas de precisão relacionados a ponto flutuante.
 
-Os identificadores dos XMLs são armazenados como `external_id`, mantendo os IDs internos do banco independentes da origem dos dados.
+---
 
-### Importação idempotente
+## IDs externos
 
-A importação utiliza os identificadores externos para atualizar registros existentes e criar apenas registros novos.
+Os IDs dos XMLs são separados dos IDs internos do banco.
 
-### Registro de inconsistências
+Isso permite:
 
-Problemas encontrados nos XMLs são registrados em `import_errors` sem alterar ou descartar silenciosamente os dados de origem.
+* preservar a origem;
+* manter os relacionamentos internos independentes;
+* executar a importação novamente;
+* evitar duplicações.
 
-### Autenticação com Sanctum
+---
 
-As rotas da API que manipulam dados protegidos utilizam Laravel Sanctum e exigem autenticação através de Bearer Token.
+## Importação idempotente
 
-### Gerenciamento de pagamentos
+A importação pode ser executada repetidamente.
 
-As regras de pagamento foram isoladas no `PaymentService`, mantendo a lógica financeira fora do Controller.
+Registros existentes são atualizados e registros novos são criados.
 
-O serviço controla:
+---
 
-* registro dos pagamentos;
-* total pago;
-* saldo restante;
-* limite máximo de pagamento;
-* operações concorrentes.
+## Inconsistências auditáveis
 
-O pagamento é registrado dentro de uma transação e a reserva é bloqueada com `lockForUpdate()` durante a verificação do saldo.
+Os dados inconsistentes não são simplesmente descartados.
 
-### Documentação OpenAPI
+Eles são registrados em `import_errors`.
 
-A API possui documentação OpenAPI 3 gerada através do L5-Swagger, permitindo visualizar e testar os endpoints documentados.
+Essa abordagem preserva a informação original e permite investigação posterior.
+
+---
+
+## Autenticação
+
+A API utiliza Laravel Sanctum para proteger as operações que manipulam dados.
+
+---
+
+# Validação dos dados importados
+
+Os arquivos fornecidos pelo desafio foram processados com sucesso.
+
+Resultado esperado:
+
+```text
+Hotéis:          3
+Quartos:         6
+Reservas:        6
+Hóspedes:        6
+Diárias:         18
+Pagamentos:      1
+Import Errors:   1
+```
+
+A existência de um `ImportError` é intencional e corresponde à inconsistência presente no XML original.
 
 ---
 
 # Comandos úteis
 
-### Servidor
+## Servidor local
 
 ```bash
 php artisan serve
 ```
 
-### Migrations
+## Migrations
 
 ```bash
 php artisan migrate
 ```
 
-### Importação
+## Importação
 
 ```bash
 php artisan hotel:import
 ```
 
-### Scheduler
+## Importação com caminho customizado
+
+```bash
+php artisan hotel:import --path=/caminho/dos/xmls
+```
+
+## Scheduler
 
 ```bash
 php artisan schedule:list
@@ -1246,66 +1774,146 @@ php artisan schedule:list
 php artisan schedule:work
 ```
 
-### Rotas
+## Rotas
 
 ```bash
 php artisan route:list
 ```
 
-### Testes
+## Testes
 
 ```bash
 php artisan test
 ```
 
-### Swagger
+## Swagger
 
 ```bash
 php artisan l5-swagger:generate
 ```
 
-Documentação:
+## Docker
 
-```text
-http://127.0.0.1:8000/api/documentation
+```bash
+docker compose up -d --build
 ```
+
+```bash
+docker compose ps
+```
+
+```bash
+docker compose exec app php artisan migrate
+```
+
+```bash
+docker compose exec app php artisan hotel:import
+```
+
+```bash
+docker compose exec app php artisan test
+```
+
+---
+
+# Status do desafio
+
+| Requisito / diferencial       | Status |
+| ----------------------------- | ------ |
+| Laravel / PHP                 | ✅      |
+| Modelagem do banco            | ✅      |
+| Importação XML                | ✅      |
+| Importação idempotente        | ✅      |
+| Tratamento de inconsistências | ✅      |
+| Artisan Command               | ✅      |
+| Scheduler / CRON              | ✅      |
+| CRUD de quartos               | ✅      |
+| API de reservas               | ✅      |
+| JSON                          | ✅      |
+| Disponibilidade               | ✅      |
+| Quantidade de unidades        | ✅      |
+| Cálculo financeiro            | ✅      |
+| Cupons / promoções            | ✅      |
+| Pagamentos                    | ✅      |
+| Controle de saldo             | ✅      |
+| Concorrência                  | ✅      |
+| Sanctum                       | ✅      |
+| Swagger / OpenAPI 3           | ✅      |
+| PHPUnit                       | ✅      |
+| Docker                        | ✅      |
+| REST / HTTP verbs             | ✅      |
+| Segurança de endpoints        | ✅      |
+| Tratamento de erros           | ✅      |
+| Documentação                  | ✅      |
+
+---
+
+# Possíveis evoluções
+
+O projeto atual foi mantido dentro do escopo definido para o desafio.
+
+A arquitetura, entretanto, permite evoluções futuras.
+
+Entre elas:
+
+* integração com gateways de pagamento;
+* estornos e reembolsos;
+* pagamentos parcelados;
+* conciliação de pagamentos;
+* gestão de usuários;
+* perfis e permissões;
+* logs de auditoria;
+* observabilidade;
+* limites de utilização de cupons;
+* campanhas promocionais mais avançadas;
+* taxas e juros;
+* serviços adicionais;
+* gerenciamento completo de hotéis;
+* consulta avançada de disponibilidade;
+* frontend consumidor da API;
+* notificações;
+* monitoramento operacional.
+
+Essas funcionalidades não fazem parte do escopo atualmente implementado.
 
 ---
 
 # Considerações finais
 
-O projeto foi desenvolvido com foco em uma API REST organizada, segura e preparada para evolução.
+O projeto foi desenvolvido com o objetivo de demonstrar não apenas a implementação dos endpoints solicitados, mas também a capacidade de estruturar uma aplicação backend considerando regras de negócio, integridade dos dados e evolução futura.
 
-Durante a implementação, foram priorizados:
+Durante o desenvolvimento foram priorizados:
 
 * separação de responsabilidades;
-* regras de negócio desacopladas dos Controllers;
+* arquitetura orientada a Services;
 * validação de dados;
-* integridade das informações;
-* controle de concorrência;
-* segurança dos endpoints;
-* cálculos financeiros no backend;
-* gerenciamento de pagamentos;
+* integridade referencial;
 * importação idempotente;
 * tratamento explícito de inconsistências;
+* transações;
+* controle de concorrência;
+* segurança dos endpoints;
+* cálculo financeiro no backend;
+* controle de pagamentos;
+* cupons;
 * testes automatizados;
-* documentação da API.
+* documentação OpenAPI;
+* containerização com Docker.
 
-O domínio também foi estruturado de forma a permitir futuras evoluções, como:
+Um dos pontos importantes da implementação foi tratar os dados dos XMLs como uma fonte externa que pode conter inconsistências. Em vez de alterar silenciosamente essas informações, o sistema preserva os dados e registra os problemas encontrados para auditoria.
 
-* integração com gateways de pagamento;
-* estornos e reembolsos;
-* pagamentos parcelados;
-* status e conciliação de pagamentos;
-* gestão de usuários e permissões;
-* logs e observabilidade mais estruturados;
-* regras promocionais mais avançadas;
-* limites de utilização de cupons;
-* taxas, juros e serviços adicionais;
-* endpoints adicionais para gerenciamento de hotéis;
-* frontend integrado à API;
-* melhorias de monitoramento e operação em ambiente de produção.
+Outro ponto importante foi a preocupação com concorrência. Tanto reservas quanto pagamentos possuem operações críticas protegidas por transações e bloqueio de registros, reduzindo riscos de overbooking e de pagamentos superiores ao saldo.
 
-Essas funcionalidades não fazem parte do escopo atualmente implementado e podem ser adicionadas conforme novas necessidades do sistema.
+A camada financeira também foi mantida no backend. O cliente fornece os dados necessários para a operação, mas os valores de subtotal, desconto, taxas e total são calculados pelo servidor.
 
-O backend atual representa a base principal do projeto, com as principais regras de negócio, autenticação, persistência, importação, gerenciamento de pagamentos, documentação e testes estruturados para permitir sua evolução.
+A aplicação possui atualmente uma suíte automatizada com:
+
+```text
+63 testes
+226 assertions
+0 falhas
+```
+
+Além disso, o projeto pode ser executado através de Docker, possui documentação OpenAPI 3 e possui um fluxo completo de importação automatizada através de Artisan Command + Laravel Scheduler + CRON.
+
+O resultado é uma base de backend organizada, testada e preparada para evolução, mantendo o escopo atual focado nos requisitos do desafio técnico.
