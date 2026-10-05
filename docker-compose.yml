@@ -1,0 +1,65 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        UID: ${APP_UID:-1000}
+        GID: ${APP_GID:-1000}
+    container_name: foco_hotel_app
+    working_dir: /var/www/html
+    volumes:
+      - .:/var/www/html
+      # vendor isolado do host: as dependências ficam só dentro do Docker
+      - vendor:/var/www/html/vendor
+    environment:
+      # Sobrescreve o .env do host (que aponta para 127.0.0.1) apenas dentro do container
+      DB_HOST: mysql
+      DB_PORT: 3306
+    expose:
+      - "9000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - foco_hotel
+
+  nginx:
+    image: nginx:stable-alpine
+    container_name: foco_hotel_nginx
+    ports:
+      - "8000:80"
+    volumes:
+      - .:/var/www/html:ro
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+    networks:
+      - foco_hotel
+
+  mysql:
+    image: mysql:8.0
+    container_name: foco_hotel_mysql
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-foco_hotel}
+      MYSQL_USER: ${DB_USERNAME:?Defina DB_USERNAME no .env (diferente de root)}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Defina DB_PASSWORD no .env}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Defina DB_ROOT_PASSWORD no .env}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - foco_hotel
+
+networks:
+  foco_hotel:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  vendor:
