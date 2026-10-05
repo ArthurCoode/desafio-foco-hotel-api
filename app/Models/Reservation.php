@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\DateOnly;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -26,8 +27,8 @@ class Reservation extends Model
     {
         return [
             'external_id' => 'integer',
-            'check_in' => 'date',
-            'check_out' => 'date',
+            'check_in' => DateOnly::class,
+            'check_out' => DateOnly::class,
             'subtotal' => 'decimal:2',
             'discount' => 'decimal:2',
             'fees' => 'decimal:2',

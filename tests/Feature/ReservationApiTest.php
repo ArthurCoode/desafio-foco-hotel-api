@@ -193,6 +193,125 @@ class ReservationApiTest extends TestCase
         $this->assertDatabaseCount('reservations', 0);
     }
 
+    public function test_rejects_unauthenticated_request(): void
+    {
+        // Descarta os guards resolvidos para remover o usuário definido por
+        // Sanctum::actingAs() no setUp, apenas neste teste.
+        $this->app['auth']->forgetGuards();
+
+        $response = $this->postJson('/api/reservations', $this->payload());
+
+        $response->assertUnauthorized();
+
+        $this->assertDatabaseCount('reservations', 0);
+    }
+
+    public function test_rejects_nonexistent_hotel(): void
+    {
+        $response = $this->postJson('/api/reservations', $this->payload([
+            'hotel_id' => 999999,
+        ]));
+
+        $response->assertStatus(422);
+
+        $this->assertDatabaseCount('reservations', 0);
+    }
+
+    public function test_rejects_nonexistent_room(): void
+    {
+        $response = $this->postJson('/api/reservations', $this->payload([
+            'room_id' => 999999,
+        ]));
+
+        $response->assertStatus(422);
+
+        $this->assertDatabaseCount('reservations', 0);
+    }
+
+    public function test_rejects_check_out_before_check_in(): void
+    {
+        $response = $this->postJson('/api/reservations', $this->payload([
+            'check_in' => '2027-01-13',
+            'check_out' => '2027-01-10',
+        ]));
+
+        $response->assertStatus(422);
+
+        $this->assertDatabaseCount('reservations', 0);
+    }
+
+    public function test_rejects_check_out_equal_to_check_in(): void
+    {
+        $response = $this->postJson('/api/reservations', $this->payload([
+            'check_in' => '2027-01-10',
+            'check_out' => '2027-01-10',
+        ]));
+
+        $response->assertStatus(422);
+
+        $this->assertDatabaseCount('reservations', 0);
+    }
+
+    public function test_allows_multiple_reservations_when_room_quantity_is_greater_than_one(): void
+    {
+        $room = Room::create([
+            'hotel_id' => $this->hotel->id,
+            'external_id' => 2,
+            'name' => 'Quarto Duplo Teste',
+            'quantity' => 2,
+        ]);
+
+        $this->postJson('/api/reservations', $this->payload(['room_id' => $room->id]))
+            ->assertCreated();
+
+        $this->postJson('/api/reservations', $this->payload(['room_id' => $room->id]))
+            ->assertCreated();
+
+        $this->assertDatabaseCount('reservations', 2);
+        $this->assertSame(2, Reservation::where('room_id', $room->id)->count());
+    }
+
+    public function test_rejects_third_reservation_when_room_quantity_is_two(): void
+    {
+        $room = Room::create([
+            'hotel_id' => $this->hotel->id,
+            'external_id' => 2,
+            'name' => 'Quarto Duplo Teste',
+            'quantity' => 2,
+        ]);
+
+        $this->postJson('/api/reservations', $this->payload(['room_id' => $room->id]))
+            ->assertCreated();
+
+        $this->postJson('/api/reservations', $this->payload(['room_id' => $room->id]))
+            ->assertCreated();
+
+        $this->postJson('/api/reservations', $this->payload(['room_id' => $room->id]))
+            ->assertStatus(409);
+
+        $this->assertDatabaseCount('reservations', 2);
+        $this->assertSame(2, Reservation::where('room_id', $room->id)->count());
+    }
+
+    public function test_allows_consecutive_reservations_because_check_out_is_exclusive(): void
+    {
+        $this->postJson('/api/reservations', $this->payload())
+            ->assertCreated();
+
+        $this->postJson('/api/reservations', $this->payload([
+            'check_in' => '2027-01-13',
+            'check_out' => '2027-01-16',
+            'dailies' => [
+                ['date' => '2027-01-13', 'amount' => 200],
+                ['date' => '2027-01-14', 'amount' => 200],
+                ['date' => '2027-01-15', 'amount' => 250],
+            ],
+        ]))->assertCreated();
+
+        $this->assertDatabaseCount('reservations', 2);
+        $this->assertSame(2, Reservation::where('room_id', $this->room->id)->count());
+    }
+
     /**
      * @param  array<string, mixed>  $overrides
      * @return array<string, mixed>

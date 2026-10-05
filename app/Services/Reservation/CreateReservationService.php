@@ -32,9 +32,12 @@ class CreateReservationService
      *     coupon_code?: string|null
      * }  $data  Dados já validados pelo StoreReservationRequest
      *
-     * @throws DomainException Quando o quarto não pertence ao hotel, não há disponibilidade
-     *                         ou o cupom é inexistente/inválido (CouponNotFoundException e
+     * @throws DomainException Quando o quarto não pertence ao hotel ou o cupom é
+     *                         inexistente/inválido (CouponNotFoundException e
      *                         InvalidCouponException estendem DomainException)
+     * @throws RoomUnavailableException Quando não há disponibilidade para o quarto no
+     *                                  período informado (estende RuntimeException e é
+     *                                  tratada separadamente pela camada HTTP)
      */
     public function create(array $data): Reservation
     {
