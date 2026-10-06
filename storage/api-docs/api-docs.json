@@ -652,27 +652,23 @@
                                                 },
                                                 "subtotal": {
                                                     "description": "Calculado no servidor: soma das diárias.",
-                                                    "type": "number",
-                                                    "format": "float",
-                                                    "example": 750
+                                                    "type": "string",
+                                                    "example": "750.00"
                                                 },
                                                 "discount": {
                                                     "description": "Calculado no servidor a partir do cupom informado.",
-                                                    "type": "number",
-                                                    "format": "float",
-                                                    "example": 75
+                                                    "type": "string",
+                                                    "example": "75.00"
                                                 },
                                                 "fees": {
                                                     "description": "Calculado no servidor. Taxas ainda não são implementadas: o valor atual é sempre 0.",
-                                                    "type": "number",
-                                                    "format": "float",
-                                                    "example": 0
+                                                    "type": "string",
+                                                    "example": "0.00"
                                                 },
                                                 "total": {
                                                     "description": "Calculado no servidor.",
-                                                    "type": "number",
-                                                    "format": "float",
-                                                    "example": 675
+                                                    "type": "string",
+                                                    "example": "675.00"
                                                 },
                                                 "created_at": {
                                                     "type": "string",
